@@ -16,9 +16,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r install packages, message=FALSE, warning=FALSE}
 library(Distance)
 library(mrds)
+# dssd and dsims on github not CRAN, uncomment both install lines, re-run
+#install_github("DistanceDevelopment/dssd", build_vignettes = TRUE)
+library(dssd)
+#install_github("DistanceDevelopment/dsims", build_vignettes = TRUE)
 library(dsims)
 library(sf)
-library(dssd)
 library(knitr)
 library(tidyverse)
 library(reshape)
