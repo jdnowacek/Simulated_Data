@@ -45,36 +45,35 @@ print(calculated_var)
 ```
 
 ```{r simulated}
-
-neg_bin <- rnbinom(1000000, prob = p, size = r)
-
-neg_bin_dist <- as.data.frame(neg_bin)
-
-neg_bin_dist |>
-  ggplot(aes(x = neg_bin)) +
-  geom_histogram(binwidth = 1) +
-  theme_bw() +
-  labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
-
-old_sim_mean <- mean(neg_bin_dist$neg_bin)
-# print(old_sim_mean)
-old_sim_var <- var(neg_bin_dist$neg_bin)
-# print(old_sim_var)
-
-neg_bin_dist_no0 <- neg_bin_dist |>
-  arrange(neg_bin) |>
-  filter(neg_bin != 0)
-
-neg_bin_dist_no0 |>
-  ggplot(aes(x = neg_bin)) +
-  geom_histogram(binwidth = 1) +
-  theme_bw() +
-  labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
-
-new_sim_mean <- mean(neg_bin_dist_no0$neg_bin)
-print(new_sim_mean)
-new_sim_var <- var(neg_bin_dist_no0$neg_bin)
-print(new_sim_var)
+# neg_bin <- rnbinom(1000000, prob = p, size = r)
+# 
+# neg_bin_dist <- as.data.frame(neg_bin)
+# 
+# neg_bin_dist |>
+#   ggplot(aes(x = neg_bin)) +
+#   geom_histogram(binwidth = 1) +
+#   theme_bw() +
+#   labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
+# 
+# old_sim_mean <- mean(neg_bin_dist$neg_bin)
+# # print(old_sim_mean)
+# old_sim_var <- var(neg_bin_dist$neg_bin)
+# # print(old_sim_var)
+# 
+# neg_bin_dist_no0 <- neg_bin_dist |>
+#   arrange(neg_bin) |>
+#   filter(neg_bin != 0)
+# 
+# neg_bin_dist_no0 |>
+#   ggplot(aes(x = neg_bin)) +
+#   geom_histogram(binwidth = 1) +
+#   theme_bw() +
+#   labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
+# 
+# new_sim_mean <- mean(neg_bin_dist_no0$neg_bin)
+# print(new_sim_mean)
+# new_sim_var <- var(neg_bin_dist_no0$neg_bin)
+# print(new_sim_var)
 ```
 
 ```{r optimization}

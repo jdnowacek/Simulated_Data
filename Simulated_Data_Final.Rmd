@@ -53,20 +53,117 @@ density <- make.density(region = region,
 plot(density, region, scale = 1)
 ```
 
-```{r pop desc and and survey design}
+```{r population description}
  # Create a covariate list describing the distribution of cluster sizes
- s <- 20
- #covariates <- list(size = list(distribution = "ztruncpois", mean = s))
 
+ s <- 20
  covariate.list <- list()
  covariate.list$size <- list(list(distribution = "ztruncpois", mean = s))
 
  # Define the population description
+ 
  pop.desc <- make.population.description(region = region,
                                          density = density,
                                          covariates = covariate.list,
                                          N = 1000,
                                          fixed.N = TRUE)
+```
+
+```{r population description ztnbinom}
+ # Create a covariate list describing the distribution of cluster sizes
+mu = 4
+var = 8
+p = mu/var
+r = (mu^2)/(var - mu)
+
+neg_binom_mean_var <- function(p, r) {
+  mu <- r* (1 - p) / p
+  mean_val <- mu / (1 - dnbinom(0, prob = p, size = r))
+  
+  muvalues <- c(1:100000)
+
+Eof_x_sqrd <- values^2 * (dnbinom(values, prob = p, size = r))
+
+Eof_x_sqrd <- Eof_x_sqrd / (1 - dnbinom(0, prob = p, size = r))
+
+Eof_x <- values * (dnbinom(values, prob = p, size = r))
+
+Eof_x <- Eof_x / (1 - dnbinom(0, prob = p, size = r))
+
+Eof_x <- sum(Eof_x)^2
+Eof_x_sqrd <- sum(Eof_x_sqrd)
+
+var_val <- (Eof_x_sqrd - Eof_x)
+
+  return(c(mean_val, var_val))
+}
+
+# Objective function to minimize the squared differences between the desired mean and variance
+# and the calculated mean and variance
+objective_function <- function(params, desired_mean, desired_var, debug = FALSE) {
+  p <- params[1]
+  r <- params[2]
+  
+  # Calculate the mean and variance of the negative binomial distribution
+  mean_var <- neg_binom_mean_var(p, r)
+  
+ if(debug) cat(p, r, mean_var[1], mean_var[2], "\n")
+  
+  # Calculate squared differences between desired and calculated mean and variance
+  diff_mean <- mean_var[1] - desired_mean
+  diff_var <- mean_var[2] - desired_var
+  
+  # Return the sum of squared differences
+  return(diff_mean^2 + diff_var^2)
+}
+
+# Desired mean and variance of the negative binomial distribution
+desired_mean <- calculated_mean
+desired_var <- calculated_var
+
+# Initial values for p and r
+initial_values <- c(p = 0.5, r = 5)
+
+# Use optim() to find values of p and r that minimize the objective function
+result <- optim(par = initial_values, fn = objective_function, desired_mean = desired_mean, desired_var = desired_var, method = "L-BFGS-B", lower = c(0, 0), upper = c(1, Inf))
+
+# Extract the optimized values of p and r from the result
+opt_p <- result$par[1]
+opt_r <- result$par[2]
+
+# Calculate the optimized mean and variance of the negative binomial distribution
+opt_mean_var <- neg_binom_mean_var(opt_p, opt_r)
+opt_mean <- opt_mean_var[1]
+opt_var <- opt_mean_var[2]
+
+rztnbinom <- function(n, size, prob){
+  pmin <- (dnbinom(0, size = r, prob = p))
+  uniform_samples <- runif(n, min = pmin, max = 1)
+  values <- qnbinom(uniform_samples, size = r, prob = p)
+  return(values)
+}
+
+generated_values <- rztnbinom(10000, size = opt_r, prob = opt_p)
+generated_values <- as.data.frame(generated_values, optional = TRUE, col.names = c(prob))
+
+# generated_values <- generated_values |>
+  # mutate(level = 1) 
+
+# throwing errors, something about column names, fix later
+
+ covariate.list2 <- list()
+ covariate.list2$size <- list(list(distribution = "ztruncpois", mean = s))
+
+ # Define the population description
+ 
+ pop.desc2 <- make.population.description(region = region,
+                                         density = density,
+                                         covariates = covariate.list2,
+                                         N = 1000,
+                                         fixed.N = TRUE)
+```
+
+```{r survey design}
 
 #Creates the survey design
 
