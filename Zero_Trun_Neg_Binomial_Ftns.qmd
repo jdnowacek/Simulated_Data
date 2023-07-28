@@ -165,6 +165,7 @@ new_dist_data |>
   theme_bw() +
   labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
 ```
+
 ```{r dztnbinom}
 dztnbinom <- function(x, size, prob){
   if (x==0){
@@ -216,11 +217,6 @@ ggplot(data, aes(x = data)) +
 print(mean(data$data))
 print(var(data$data))
 
-``` 
-
-
-
-
-
+```
 
 EOF

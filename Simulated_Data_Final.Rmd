@@ -93,7 +93,7 @@ w <- 100
 
 # Defines the number of reps for the simulation
 
-n.reps <- 1000
+n.reps <- 10
 
 # Creates a blank list to which to save the future results
 
