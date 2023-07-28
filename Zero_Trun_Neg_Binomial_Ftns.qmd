@@ -1,0 +1,226 @@
+---
+title: "ztnbinom functions"
+format: html
+editor: visual
+---
+
+## Package Download
+
+```{r packages}
+library(Distance)
+library(stats)
+library(tidyverse)
+```
+
+```{r distribution parameters}
+mu = 2
+var = 3
+p = mu/var
+r = (mu^2)/(var - mu)
+```
+
+```{r mathematical}
+calculated_mean = mu / (1 - dnbinom(0, prob = p, size = r))
+print(calculated_mean)
+
+values <- c(1:100000)
+
+Eof_x_sqrd <- values^2 * (dnbinom(values, prob = p, size = r))
+
+Eof_x_sqrd <- Eof_x_sqrd / (1 - dnbinom(0, prob = p, size = r))
+
+Eof_x <- values * (dnbinom(values, prob = p, size = r))
+
+Eof_x <- Eof_x / (1 - dnbinom(0, prob = p, size = r))
+
+Eof_x <- sum(Eof_x)^2
+Eof_x_sqrd <- sum(Eof_x_sqrd)
+
+calculated_var <- (Eof_x_sqrd - Eof_x)
+print(calculated_var)
+
+# vectorize dnbinom instead of written formulas, that drops the loop, makes it faster
+# eventually, mechanism for sum iteratively until we have enough terms, reaches the bottom of the graph
+#
+```
+
+```{r simulated}
+
+neg_bin <- rnbinom(1000000, prob = p, size = r)
+
+neg_bin_dist <- as.data.frame(neg_bin)
+
+neg_bin_dist |>
+  ggplot(aes(x = neg_bin)) +
+  geom_histogram(binwidth = 1) +
+  theme_bw() +
+  labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
+
+old_sim_mean <- mean(neg_bin_dist$neg_bin)
+# print(old_sim_mean)
+old_sim_var <- var(neg_bin_dist$neg_bin)
+# print(old_sim_var)
+
+neg_bin_dist_no0 <- neg_bin_dist |>
+  arrange(neg_bin) |>
+  filter(neg_bin != 0)
+
+neg_bin_dist_no0 |>
+  ggplot(aes(x = neg_bin)) +
+  geom_histogram(binwidth = 1) +
+  theme_bw() +
+  labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
+
+new_sim_mean <- mean(neg_bin_dist_no0$neg_bin)
+print(new_sim_mean)
+new_sim_var <- var(neg_bin_dist_no0$neg_bin)
+print(new_sim_var)
+```
+
+```{r optimization}
+# Function to calculate the mean and variance of the negative binomial distribution
+neg_binom_mean_var <- function(p, r) {
+  mu <- r* (1 - p) / p
+  mean_val <- mu / (1 - dnbinom(0, prob = p, size = r))
+  
+  muvalues <- c(1:100000)
+
+Eof_x_sqrd <- values^2 * (dnbinom(values, prob = p, size = r))
+
+Eof_x_sqrd <- Eof_x_sqrd / (1 - dnbinom(0, prob = p, size = r))
+
+Eof_x <- values * (dnbinom(values, prob = p, size = r))
+
+Eof_x <- Eof_x / (1 - dnbinom(0, prob = p, size = r))
+
+Eof_x <- sum(Eof_x)^2
+Eof_x_sqrd <- sum(Eof_x_sqrd)
+
+var_val <- (Eof_x_sqrd - Eof_x)
+
+  return(c(mean_val, var_val))
+}
+
+# Objective function to minimize the squared differences between the desired mean and variance
+# and the calculated mean and variance
+objective_function <- function(params, desired_mean, desired_var, debug = FALSE) {
+  p <- params[1]
+  r <- params[2]
+  
+  # Calculate the mean and variance of the negative binomial distribution
+  mean_var <- neg_binom_mean_var(p, r)
+  
+ if(debug) cat(p, r, mean_var[1], mean_var[2], "\n")
+  
+  # Calculate squared differences between desired and calculated mean and variance
+  diff_mean <- mean_var[1] - desired_mean
+  diff_var <- mean_var[2] - desired_var
+  
+  # Return the sum of squared differences
+  return(diff_mean^2 + diff_var^2)
+}
+
+# Desired mean and variance of the negative binomial distribution
+desired_mean <- calculated_mean
+desired_var <- calculated_var
+
+# Initial values for p and r
+initial_values <- c(p = 0.5, r = 5)
+
+# Use optim() to find values of p and r that minimize the objective function
+result <- optim(par = initial_values, fn = objective_function, desired_mean = desired_mean, desired_var = desired_var, method = "L-BFGS-B", lower = c(0, 0), upper = c(1, Inf))
+
+# Extract the optimized values of p and r from the result
+opt_p <- result$par[1]
+opt_r <- result$par[2]
+
+# Calculate the optimized mean and variance of the negative binomial distribution
+opt_mean_var <- neg_binom_mean_var(opt_p, opt_r)
+opt_mean <- opt_mean_var[1]
+opt_var <- opt_mean_var[2]
+
+# Print the optimized values
+print(paste("Optimized p:", opt_p))
+print(paste("Optimized r:", opt_r))
+print(paste("Optimized mean:", opt_mean))
+print(paste("Optimized variance:", opt_var))
+```
+
+```{r optimized parameter display}
+new_p <- unname(opt_p)
+new_r <- unname(opt_r)
+
+new_dist <- rnbinom(1000000, size = new_r, prob = new_p)
+new_dist_data <- as.data.frame(new_dist)
+
+new_dist_data <- new_dist_data |>
+  filter(new_dist != 0)
+
+mean(new_dist_data$new_dist)
+var(new_dist_data$new_dist)
+
+new_dist_data |>
+  ggplot(aes(x = new_dist)) +
+  geom_histogram(binwidth = 1) +
+  theme_bw() +
+  labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
+```
+```{r dztnbinom}
+dztnbinom <- function(x, size, prob){
+  if (x==0){
+    return(0)
+  }
+  return(dnbinom(x, prob = p, size = r) / (1 - dnbinom(x, prob = p, size = r)))
+}
+
+dztnbinom(2, size = r, prob = p)
+```
+
+```{r pztnbinom}
+# q should be the end of the probability tail that you wish to see. 
+
+pztnbinom <- function(q, size, prob, lower.tail = TRUE){
+  
+  if (q==0){
+    return(0)
+  }
+  
+  if (!lower.tail) {
+  return(dnbinom(q, prob = p, size = r) / (1 - dnbinom(q, prob = p, size = r)))
+  }
+  
+set <- seq(from = 1, to = q)
+return(sum(dnbinom(set, prob = p, size = r) / (1 - dnbinom(set, prob = p, size = r))))
+}
+
+pztnbinom(2, size = r, prob = p)
+```
+
+```{r rztnbinom}
+
+rztnbinom <- function(n, size, prob){
+  pmin <- (dnbinom(0, size = r, prob = p))
+  uniform_samples <- runif(n, min = pmin, max = 1)
+  values <- qnbinom(uniform_samples, size = r, prob = p)
+  return(values)
+}
+
+data <- rztnbinom(10000000, size = r, prob = p)
+data <- as.data.frame(data)
+
+ggplot(data, aes(x = data)) +
+  geom_histogram(binwidth = 1) +
+  theme_bw() +
+  labs(title = "Negative Binomial Distribution", x = "Value", y = "Frequency")
+
+print(mean(data$data))
+print(var(data$data))
+
+``` 
+
+
+
+
+
+
+EOF
