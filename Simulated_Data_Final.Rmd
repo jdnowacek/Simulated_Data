@@ -1,0 +1,209 @@
+---
+title: "Looped_Simulated_data"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+date: "2023-07-13"
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install packages, message=FALSE, warning=FALSE}
+library(Distance)
+library(mrds)
+library(dsims)
+library(sf)
+library(dssd)
+library(knitr)
+library(tidyverse)
+library(reshape)
+library(ggplot2)
+library(plotly)
+library(pbapply)
+library(devtools)
+```
+
+```{r study area}
+# Creates a study area shape
+study_area <- matrix(c(0, 0, 3000, 0, 3000, 2000, 0, 2000, 0, 0), ncol = 2, byrow = TRUE)
+study_area_data <- data.frame(ID = 1)
+study_area_sf <- st_sf(geometry =  
+            st_sfc(st_polygon(list(study_area))), data = study_area_data)
+
+# Defines the shape as our region
+region <- make.region(region.name = "Test Area",
+                      shape = study_area_sf,
+                      units = "m")
+plot(region)
+```
+```{r density}
+# Creates a uniform density over the study region
+density <- make.density(region = region,
+                        x.space = 100,
+                        y.space = 100,
+                        constant = 1)
+plot(density, region, scale = 1)
+```
+
+```{r pop desc and and survey design}
+ # Create a covariate list describing the distribution of cluster sizes
+ s <- 20
+ #covariates <- list(size = list(distribution = "ztruncpois", mean = s))
+
+ covariate.list <- list()
+ covariate.list$size <- list(list(distribution = "ztruncpois", mean = s))
+
+ # Define the population description
+ pop.desc <- make.population.description(region = region,
+                                         density = density,
+                                         covariates = covariate.list,
+                                         N = 1000,
+                                         fixed.N = TRUE)
+
+#Creates the survey design
+
+design <- make.design(region = region,
+                      transect.type = "line",
+                      design = "systematic",
+                      spacing = 250,
+                      truncation = 100)
+transects <- generate.transects(design)
+plot(region, transects)
+```
+```{r model parameters}
+# Defines the beta values, the models, the number of beta permutations and the 
+# truncation distance 
+
+beta_0 <- c(11, 13, 15, 17, 19)
+beta_1 <- c(0.045, 0.0475, 0.05, 0.0525, 0.055)
+
+models <- list(~1, ~size)
+
+n.beta_0 <- length(beta_0)
+n.beta_1 <- length(beta_1)
+
+n.models <- length(models)
+
+w <- 100
+
+# Defines the number of reps for the simulation
+
+n.reps <- 1000
+
+# Creates a blank list to which to save the future results
+
+results <- list()
+
+# Switch operators determining output
+
+run.simulation <- TRUE
+show.results <- TRUE
+
+```
+
+```{r detection function example}
+test_detectability <- make.detectability(key.function = "hn",
+                                scale.param = median(beta_0),
+                                cov.param = list( size = median(beta_1)),
+                                truncation = w)
+
+plot(test_detectability, pop.desc)
+```
+
+```{r standard simulation loop, message=FALSE}
+if(run.simulation) {
+  
+  for (l in 1:n.models){
+      
+      ds.analyses <- make.ds.analysis(dfmodel = models[[l]],
+                                key = c("hn"),
+                                truncation = 100,
+                                criteria = "AIC") 
+
+  for (i in 1:n.beta_0) {
+    for(j in 1:n.beta_1) {
+      detect.hn <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0[i], 
+                                cov.param = list( size = beta_1[j]),
+                                truncation = w)
+      
+      
+      sim <- make.simulation(reps = n.reps, 
+                      design = design,
+                      population.description = pop.desc,
+                      detectability = detect.hn,
+                      ds.analysis = ds.analyses)
+      
+      sim.summary <- run.simulation(simulation = sim, run.parallel = TRUE) |>
+      summary(description.summary = FALSE)
+      results <- append(results, sim.summary)
+      }
+    }
+  }
+saved_file <- saveRDS(results, file = "simulation_results")
+}
+if (!run.simulation)
+{
+readRDS(file = "simulation_results")
+}
+```
+
+```{r sample survey display}
+# shows an example survey with detections and distance histogram
+survey <- run.survey(sim)
+plot(survey, region)
+```
+
+```{r results, warning=FALSE}
+if(show.results) {
+  
+  #pull out percentage bias into a matrix
+  abs.rel.bias_std <- matrix(NA, n.beta_0, n.beta_1)
+  abs.rel.bias_size_cov <- matrix(NA, n.beta_0, n.beta_1)
+  
+  k <- 1 
+  
+  for(i in 1:n.beta_0){
+    for(j in 1:n.beta_1){
+      
+      abs.rel.bias_std[i, j] <- 
+        abs(results[[k]]@individuals$N$percent.bias)
+      
+      abs.rel.bias_size_cov[i, j] <- 
+        abs(results[[k+n.beta_0*n.beta_1]]@individuals$N$percent.bias)
+      k <- k + 1
+    }
+  }  
+  rownames(abs.rel.bias_std) <- beta_0
+  colnames(abs.rel.bias_std) <- beta_1
+  rownames(abs.rel.bias_size_cov) <- beta_0
+  colnames(abs.rel.bias_size_cov) <- beta_1
+  
+abs.rel.bias_std_melted <- melt(abs.rel.bias_std)
+
+std_model_heatmap <- ggplot(abs.rel.bias_std_melted, aes(X2, X1)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_continuous() +
+  labs(y = "Beta 0", x = "Beta 1", title = "Standard Model Bias")
+
+abs.rel.bias_size_cov_melted <- melt(abs.rel.bias_size_cov)
+
+size_cov_model_heatmap <- ggplot(abs.rel.bias_size_cov_melted, aes(X2, X1)) +
+  geom_tile(aes(fill = value)) +
+  scale_fill_continuous() +
+  labs(y = "Beta 0", x = "Beta 1", title = "Size Covariate Model Bias")
+}
+
+std_model_heatmap
+
+size_cov_model_heatmap
+```
+
+
+
+

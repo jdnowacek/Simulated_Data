@@ -1,0 +1,903 @@
+---
+title: "Simulated Data"
+author: "Jack Nowacek"
+date: "2023-06-20"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Package Prep and Library
+
+```{r packages, warning=FALSE}
+library(Distance)
+library(mrds)
+library(dsims)
+library(sf)
+library(dssd)
+library(knitr)
+library(tidyverse)
+library(reshape)
+library(ggplot2)
+library(pbapply)
+#install.packages("devtools")
+ library(devtools)
+  #install_github("DistanceDevelopment/dssd", build_vignettes = TRUE)
+  #install_github("DistanceDevelopment/dsims", build_vignettes = TRUE)
+```
+
+Working with Dsims creating the region for study
+
+This creates a 3000 by 2000 meter region which we can add a population distribution to, creating a functional study area. Below is a plot of the region with no population.
+
+```{r study area specifications}
+# Find the file path to the example shapefile in dssd
+#shapefile.name <- system.file("extdata", "StAndrew.shp", package = "dssd")
+
+study_area <- matrix(c(0, 0, 3000, 0, 3000, 2000, 0, 2000, 0, 0), ncol = 2, byrow = TRUE)
+study_area_data <- data.frame(ID = 1)
+study_area_sf <- st_sf(geometry =  
+            st_sfc(st_polygon(list(study_area))), data = study_area_data)
+
+print(study_area_sf)
+# Create the survey region object
+region <- make.region(region.name = "Test Area",
+                      shape = study_area_sf,
+                      units = "m")
+plot(region)
+```
+
+This chunk adds a uniform population density to the study area, allowing us to perform analysis on the study area. Below is a density plot of our study region, the uniform color corresponds to the uniform population distribution.
+
+```{r density over study area}
+# We first create a flat density grid
+density <- make.density(region = region,
+                        x.space = 100,
+                        y.space = 100,
+                        constant = 1)
+
+plot(density, region, scale = 1)
+```
+
+This chunk turns our uniform density into a dataset, allowing us to see its raw form. This raw data would be similar to data that we may collect on line transect surverys.
+
+```{r create dataset for density over area}
+density.data <- density@density.surface[[1]]
+head(density.data)
+```
+
+This chunk defines the population distribution. First, the covariates are defined, in our case, group size. The group size in this data averages 2 and follows a zero-truncated Poissant distribution. This group size distribution is fed into the model along with the region and population density that we defined previously. Here we also specify our population size, in number of groups.
+
+```{r group size covariance distribution}
+ # Create a covariate list describing the distribution of cluster sizes
+ s <- 20
+ #covariates <- list(size = list(distribution = "ztruncpois", mean = s))
+
+ covariate.list <- list()
+ covariate.list$size <- list(list(distribution = "ztruncpois", mean = s))
+
+ # Define the population description
+ pop.desc <- make.population.description(region = region,
+                                         density = density,
+                                         covariates = covariate.list,
+                                         N = 500,
+                                         fixed.N = TRUE)
+```
+
+Here we define our detection function by defining our scale parameter and our truncation distance. 
+
+```{r detection function}
+
+# test values for beta_0: 4, 5, 6, 7 ,8
+#test values for beta_1: .052, .053, .054, .055, .056
+
+beta_0_11 <- 4
+beta_1_11 <- 0.052
+
+beta_0_12 <- 4
+beta_1_12 <- 0.053
+
+beta_0_13 <- 4
+beta_1_13 <- 0.054
+
+beta_0_14 <- 4
+beta_1_14 <- 0.055
+
+beta_0_15 <- 4
+beta_1_15 <- 0.056
+
+beta_0_21 <- 5
+beta_1_21 <- 0.052
+
+beta_0_22 <- 5
+beta_1_22 <- 0.053
+
+beta_0_23 <- 5
+beta_1_23 <- 0.054
+
+beta_0_24 <- 5
+beta_1_24 <- 0.055
+
+beta_0_25 <- 5
+beta_1_25 <- 0.056
+
+beta_0_31 <- 6
+beta_1_31 <- 0.052
+
+beta_0_32 <- 6
+beta_1_32 <- 0.053
+
+beta_0_33 <- 6
+beta_1_33 <- 0.054
+
+beta_0_34 <- 6
+beta_1_34 <- 0.055
+
+beta_0_35 <- 6
+beta_1_35 <- 0.056
+
+beta_0_41 <- 7
+beta_1_41 <- 0.052
+
+beta_0_42 <- 7
+beta_1_42 <- 0.053
+
+beta_0_43 <- 7
+beta_1_43 <- 0.054
+
+beta_0_44 <- 7
+beta_1_44 <- 0.055
+
+beta_0_45 <- 7
+beta_1_45 <- 0.056
+
+beta_0_51 <- 8
+beta_1_51 <- 0.052
+
+beta_0_52 <- 8
+beta_1_52 <- 0.053
+
+beta_0_53 <- 8
+beta_1_53 <- 0.054
+
+beta_0_54 <- 8
+beta_1_54 <- 0.055
+
+beta_0_55 <- 8
+beta_1_55 <- 0.056
+
+w <- 100
+
+detect.hn_11 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_11, 
+                                cov.param = list(size = beta_1_11),
+                                truncation = w)
+
+detect.hn_12 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_12, 
+                                cov.param = list(size = beta_1_12),
+                                truncation = w)
+
+detect.hn_13 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_13, 
+                                cov.param =list(size =  beta_1_13),
+                                truncation = w)
+
+detect.hn_14 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_14, 
+                                cov.param = list(size = beta_1_14),
+                                truncation = w)
+
+detect.hn_15 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_15, 
+                                cov.param = list(size = beta_1_15),
+                                truncation = w)
+
+detect.hn_21 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_21, 
+                                cov.param = list(size = beta_1_21),
+                                truncation = w)
+
+detect.hn_22 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_22, 
+                                cov.param = list(size = beta_1_22),
+                                truncation = w)
+
+detect.hn_23 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_23, 
+                                cov.param = list(size = beta_1_23),
+                                truncation = w)
+
+detect.hn_24 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_24, 
+                                cov.param = list(size = beta_1_24),
+                                truncation = w)
+
+detect.hn_25 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_25, 
+                                cov.param = list(size = beta_1_25),
+                                truncation = w)
+
+detect.hn_31 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_31, 
+                                cov.param = list(size = beta_1_31),
+                                truncation = w)
+
+detect.hn_32 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_32, 
+                                cov.param = list(size = beta_1_32),
+                                truncation = w)
+
+detect.hn_33 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_33, 
+                                cov.param = list(size = beta_1_33),
+                                truncation = w)
+
+detect.hn_34 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_34, 
+                                cov.param = list(size = beta_1_34),
+                                truncation = w)
+
+detect.hn_35 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_35, 
+                                cov.param = list(size = beta_1_35),
+                                truncation = w)
+
+detect.hn_41 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_41, 
+                                cov.param = list(size = beta_1_41),
+                                truncation = w)
+
+detect.hn_42 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_42, 
+                                cov.param = list(size = beta_1_42),
+                                truncation = w)
+
+detect.hn_43 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_43, 
+                                cov.param = list(size = beta_1_43),
+                                truncation = w)
+
+detect.hn_44 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_44, 
+                                cov.param = list(size = beta_1_44),
+                                truncation = w)
+
+detect.hn_45 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_45, 
+                                cov.param =list(size =  beta_1_45),
+                                truncation = w)
+
+detect.hn_51 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_51, 
+                                cov.param = list(size = beta_1_51),
+                                truncation = w)
+
+detect.hn_52 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_52, 
+                                cov.param = list(size = beta_1_52),
+                                truncation = w)
+
+detect.hn_53 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_53, 
+                                cov.param = list(size = beta_1_53),
+                                truncation = w)
+
+detect.hn_54 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_54, 
+                                cov.param = list(size = beta_1_54),
+                                truncation = w)
+
+detect.hn_55 <- make.detectability(key.function = "hn", 
+                                scale.param = beta_0_55, 
+                                cov.param = list(size = beta_1_55),
+                                truncation = w)
+# We can now visualise these detection functions
+plot(detect.hn_33, pop.desc)
+```
+
+Here we define our survey design as a line transect survey with systematic (parallel) lines. We define our spacing between survey lines and again our truncation distance. The plot below lets us visualize the survey tracks.
+
+A note on truncation distance: while we can define our truncation distance in multiple places, note the effective truncation distance from the detection function.
+
+
+```{r survey design}
+# Define the design
+design <- make.design(region = region,
+                      transect.type = "line",
+                      design = "systematic",
+                      spacing = 300,
+                      truncation = 100)
+```
+
+```{r plot of transects}
+transects <- generate.transects(design)
+plot(region, transects)
+```
+
+The next two code chunks define our analyses and simulations, using our survey design, population description, and detection function. The four results tables are a map of the transects through the study area, a map of the population on the study area, a third plot with both of the previous elements, displaying the groups which were detected, and finally the detection increment histogram.
+
+```{r analysis specifications}
+ds.analyses_standard <- make.ds.analysis(dfmodel = list(~1),
+                                key = c("hn"),
+                                truncation = 100,
+                                criteria = "AIC")
+
+ds.analyses_size_cov <- make.ds.analysis(dfmodel = list(~size),
+                                key = c("hn"),
+                                truncation = 100,
+                                criteria = "AIC")
+```
+
+```{r simulation design standard}
+sim_11_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_11,
+                       ds.analysis = ds.analyses_standard)
+
+sim_12_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_12,
+                       ds.analysis = ds.analyses_standard)
+
+sim_13_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_13,
+                       ds.analysis = ds.analyses_standard)
+
+sim_14_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_14,
+                       ds.analysis = ds.analyses_standard)
+
+sim_15_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_15,
+                       ds.analysis = ds.analyses_standard)
+
+sim_21_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_21,
+                       ds.analysis = ds.analyses_standard)
+
+sim_22_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_22,
+                       ds.analysis = ds.analyses_standard)
+
+sim_23_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_23,
+                       ds.analysis = ds.analyses_standard)
+
+sim_24_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_24,
+                       ds.analysis = ds.analyses_standard)
+
+sim_25_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_25,
+                       ds.analysis = ds.analyses_standard)
+
+sim_31_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_31,
+                       ds.analysis = ds.analyses_standard)
+
+sim_32_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_32,
+                       ds.analysis = ds.analyses_standard)
+
+
+sim_33_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_33,
+                       ds.analysis = ds.analyses_standard)
+
+sim_34_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_34,
+                       ds.analysis = ds.analyses_standard)
+
+sim_35_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_35,
+                       ds.analysis = ds.analyses_standard)
+
+sim_41_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_41,
+                       ds.analysis = ds.analyses_standard)
+
+sim_42_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_42,
+                       ds.analysis = ds.analyses_standard)
+
+sim_43_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_43,
+                       ds.analysis = ds.analyses_standard)
+
+sim_44_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_44,
+                       ds.analysis = ds.analyses_standard)
+
+sim_45_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_45,
+                       ds.analysis = ds.analyses_standard)
+
+sim_51_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_51,
+                       ds.analysis = ds.analyses_standard)
+
+sim_52_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_52,
+                       ds.analysis = ds.analyses_standard)
+
+sim_53_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_53,
+                       ds.analysis = ds.analyses_standard)
+
+sim_54_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_54,
+                       ds.analysis = ds.analyses_standard)
+
+sim_55_standard <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_55,
+                       ds.analysis = ds.analyses_standard)
+
+```
+
+```{r simulation design size covariate}
+sim_11_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_11,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_12_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_12,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_13_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_13,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_14_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_14,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_15_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_15,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_21_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_21,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_22_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_22,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_23_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_23,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_24_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_24,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_25_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_25,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_31_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_31,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_32_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_32,
+                       ds.analysis = ds.analyses_size_cov)
+
+
+sim_33_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_33,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_34_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_34,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_35_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_35,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_41_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_41,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_42_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_42,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_43_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_43,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_44_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_44,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_45_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_45,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_51_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_51,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_52_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_52,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_53_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_53,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_54_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_54,
+                       ds.analysis = ds.analyses_size_cov)
+
+sim_55_size_cov <- make.simulation(reps = 3, 
+                       design = design,
+                       population.description = pop.desc,
+                       detectability = detect.hn_55,
+                       ds.analysis = ds.analyses_size_cov)
+```
+
+The tables below summarize our statistical results. This final plot provides a histogram of the population estimates from each simulation. 
+
+```{r standard simulations}
+sim_11_standard <- 
+  run.simulation(simulation = sim_11_standard, run.parallel = TRUE)
+sim_12_standard <- 
+  run.simulation(simulation = sim_12_standard, run.parallel = TRUE)
+sim_13_standard <- 
+  run.simulation(simulation = sim_13_standard, run.parallel = TRUE)
+sim_14_standard <- 
+  run.simulation(simulation = sim_14_standard, run.parallel = TRUE)
+sim_15_standard <- 
+  run.simulation(simulation = sim_15_standard, run.parallel = TRUE)
+sim_21_standard <- 
+  run.simulation(simulation = sim_21_standard, run.parallel = TRUE)
+sim_22_standard <- 
+  run.simulation(simulation = sim_22_standard, run.parallel = TRUE)
+sim_23_standard <- 
+  run.simulation(simulation = sim_23_standard, run.parallel = TRUE)
+sim_24_standard <- 
+  run.simulation(simulation = sim_24_standard, run.parallel = TRUE)
+sim_25_standard <- 
+  run.simulation(simulation = sim_25_standard, run.parallel = TRUE)
+sim_31_standard <- 
+  run.simulation(simulation = sim_31_standard, run.parallel = TRUE)
+sim_32_standard <- 
+  run.simulation(simulation = sim_32_standard, run.parallel = TRUE)
+sim_33_standard <- 
+  run.simulation(simulation = sim_33_standard, run.parallel = TRUE)
+sim_34_standard <- 
+  run.simulation(simulation = sim_34_standard, run.parallel = TRUE)
+sim_35_standard <- 
+  run.simulation(simulation = sim_35_standard, run.parallel = TRUE)
+sim_41_standard <- 
+  run.simulation(simulation = sim_41_standard, run.parallel = TRUE)
+sim_42_standard <- 
+  run.simulation(simulation = sim_42_standard, run.parallel = TRUE)
+sim_43_standard <- 
+  run.simulation(simulation = sim_43_standard, run.parallel = TRUE)
+sim_44_standard <- 
+  run.simulation(simulation = sim_44_standard, run.parallel = TRUE)
+sim_45_standard <- 
+  run.simulation(simulation = sim_45_standard, run.parallel = TRUE)
+sim_51_standard <- 
+  run.simulation(simulation = sim_51_standard, run.parallel = TRUE)
+sim_52_standard <- 
+  run.simulation(simulation = sim_52_standard, run.parallel = TRUE)
+sim_53_standard <- 
+  run.simulation(simulation = sim_53_standard, run.parallel = TRUE)
+sim_54_standard <- 
+  run.simulation(simulation = sim_54_standard, run.parallel = TRUE)
+sim_55_standard <- 
+  run.simulation(simulation = sim_55_standard, run.parallel = TRUE)
+```
+
+```{r size covariate simulations}
+sim_11_size_cov <- 
+  run.simulation(simulation = sim_11_size_cov, run.parallel = TRUE)
+sim_12_size_cov <- 
+  run.simulation(simulation = sim_12_size_cov, run.parallel = TRUE)
+sim_13_size_cov <- 
+  run.simulation(simulation = sim_13_size_cov, run.parallel = TRUE)
+sim_14_size_cov <- 
+  run.simulation(simulation = sim_14_size_cov, run.parallel = TRUE)
+sim_15_size_cov <- 
+  run.simulation(simulation = sim_15_size_cov, run.parallel = TRUE)
+sim_21_size_cov <- 
+  run.simulation(simulation = sim_21_size_cov, run.parallel = TRUE)
+sim_22_size_cov <- 
+  run.simulation(simulation = sim_22_size_cov, run.parallel = TRUE)
+sim_23_size_cov <- 
+  run.simulation(simulation = sim_23_size_cov, run.parallel = TRUE)
+sim_24_size_cov <- 
+  run.simulation(simulation = sim_24_size_cov, run.parallel = TRUE)
+sim_25_size_cov <- 
+  run.simulation(simulation = sim_25_size_cov, run.parallel = TRUE)
+sim_31_size_cov <- 
+  run.simulation(simulation = sim_31_size_cov, run.parallel = TRUE)
+sim_32_size_cov <- 
+  run.simulation(simulation = sim_32_size_cov, run.parallel = TRUE)
+sim_33_size_cov <- 
+  run.simulation(simulation = sim_33_size_cov, run.parallel = TRUE)
+sim_34_size_cov <- 
+  run.simulation(simulation = sim_34_size_cov, run.parallel = TRUE)
+sim_35_size_cov <- 
+  run.simulation(simulation = sim_35_size_cov, run.parallel = TRUE)
+sim_41_size_cov <- 
+  run.simulation(simulation = sim_41_size_cov, run.parallel = TRUE)
+sim_42_size_cov <- 
+  run.simulation(simulation = sim_42_size_cov, run.parallel = TRUE)
+sim_43_size_cov <- 
+  run.simulation(simulation = sim_43_size_cov, run.parallel = TRUE)
+sim_44_size_cov <- 
+  run.simulation(simulation = sim_44_size_cov, run.parallel = TRUE)
+sim_45_size_cov <- 
+  run.simulation(simulation = sim_45_size_cov, run.parallel = TRUE)
+sim_51_size_cov <- 
+  run.simulation(simulation = sim_51_size_cov, run.parallel = TRUE)
+sim_52_size_cov <- 
+  run.simulation(simulation = sim_52_size_cov, run.parallel = TRUE)
+sim_53_size_cov <- 
+  run.simulation(simulation = sim_53_size_cov, run.parallel = TRUE)
+sim_54_size_cov <- 
+  run.simulation(simulation = sim_54_size_cov, run.parallel = TRUE)
+sim_55_size_cov <- 
+  run.simulation(simulation = sim_55_size_cov, run.parallel = TRUE)
+```
+
+```{r simulation results}
+# Display a histogram of the estimates of abundance
+#use.max.reps = TRUE
+sim_11_standard_summary <- summary(sim_11_standard, description.summary = FALSE)
+sim_12_standard_summary <- summary(sim_12_standard, description.summary = FALSE)
+sim_13_standard_summary <- summary(sim_13_standard, description.summary = FALSE)
+sim_14_standard_summary <- summary(sim_14_standard, description.summary = FALSE)
+sim_15_standard_summary <- summary(sim_15_standard, description.summary = FALSE)
+sim_21_standard_summary <- summary(sim_21_standard, description.summary = FALSE)
+sim_22_standard_summary <- summary(sim_22_standard, description.summary = FALSE)
+sim_23_standard_summary <- summary(sim_23_standard, description.summary = FALSE)
+sim_24_standard_summary <- summary(sim_24_standard, description.summary = FALSE)
+sim_25_standard_summary <- summary(sim_25_standard, description.summary = FALSE)
+sim_31_standard_summary <- summary(sim_31_standard, description.summary = FALSE)
+sim_32_standard_summary <- summary(sim_32_standard, description.summary = FALSE)
+sim_33_standard_summary <- summary(sim_33_standard, description.summary = FALSE)
+sim_34_standard_summary <- summary(sim_34_standard, description.summary = FALSE)
+sim_35_standard_summary <- summary(sim_35_standard, description.summary = FALSE)
+sim_41_standard_summary <- summary(sim_41_standard, description.summary = FALSE)
+sim_42_standard_summary <- summary(sim_42_standard, description.summary = FALSE)
+sim_43_standard_summary <- summary(sim_43_standard, description.summary = FALSE)
+sim_44_standard_summary <- summary(sim_44_standard, description.summary = FALSE)
+sim_45_standard_summary <- summary(sim_45_standard, description.summary = FALSE)
+sim_51_standard_summary <- summary(sim_51_standard, description.summary = FALSE)
+sim_52_standard_summary <- summary(sim_52_standard, description.summary = FALSE)
+sim_53_standard_summary <- summary(sim_53_standard, description.summary = FALSE)
+sim_54_standard_summary <- summary(sim_54_standard, description.summary = FALSE)
+sim_55_standard_summary <- summary(sim_55_standard, description.summary = FALSE)
+
+
+sim_11_size_cov_summary <- summary(sim_11_size_cov, description.summary = FALSE)
+sim_12_size_cov_summary <- summary(sim_12_size_cov, description.summary = FALSE)
+sim_13_size_cov_summary <- summary(sim_13_size_cov, description.summary = FALSE)
+sim_14_size_cov_summary <- summary(sim_14_size_cov, description.summary = FALSE)
+sim_15_size_cov_summary <- summary(sim_15_size_cov, description.summary = FALSE)
+sim_21_size_cov_summary <- summary(sim_21_size_cov, description.summary = FALSE)
+sim_22_size_cov_summary <- summary(sim_22_size_cov, description.summary = FALSE)
+sim_23_size_cov_summary <- summary(sim_23_size_cov, description.summary = FALSE)
+sim_24_size_cov_summary <- summary(sim_24_size_cov, description.summary = FALSE)
+sim_25_size_cov_summary <- summary(sim_25_size_cov, description.summary = FALSE)
+sim_31_size_cov_summary <- summary(sim_31_size_cov, description.summary = FALSE)
+sim_32_size_cov_summary <- summary(sim_32_size_cov, description.summary = FALSE)
+sim_33_size_cov_summary <- summary(sim_33_size_cov, description.summary = FALSE)
+sim_34_size_cov_summary <- summary(sim_34_size_cov, description.summary = FALSE)
+sim_35_size_cov_summary <- summary(sim_35_size_cov, description.summary = FALSE)
+sim_41_size_cov_summary <- summary(sim_41_size_cov, description.summary = FALSE)
+sim_42_size_cov_summary <- summary(sim_42_size_cov, description.summary = FALSE)
+sim_43_size_cov_summary <- summary(sim_43_size_cov, description.summary = FALSE)
+sim_44_size_cov_summary <- summary(sim_44_size_cov, description.summary = FALSE)
+sim_45_size_cov_summary <- summary(sim_45_size_cov, description.summary = FALSE)
+sim_51_size_cov_summary <- summary(sim_51_size_cov, description.summary = FALSE)
+sim_52_size_cov_summary <- summary(sim_52_size_cov, description.summary = FALSE)
+sim_53_size_cov_summary <- summary(sim_53_size_cov, description.summary = FALSE)
+sim_54_size_cov_summary <- summary(sim_54_size_cov, description.summary = FALSE)
+sim_55_size_cov_summary <- summary(sim_55_size_cov, description.summary = FALSE)
+
+histogram.N.ests(sim_33_standard)
+histogram.N.ests(sim_33_size_cov)
+```
+
+```{r bias standard summary}
+standard_summary_bias <- c(
+abs(sim_11_standard_summary@individuals$N$percent.bias), abs(sim_12_standard_summary@individuals$N$percent.bias),
+abs(sim_13_standard_summary@individuals$N$percent.bias),
+abs(sim_14_standard_summary@individuals$N$percent.bias),
+abs(sim_15_standard_summary@individuals$N$percent.bias),
+abs(sim_21_standard_summary@individuals$N$percent.bias),
+abs(sim_22_standard_summary@individuals$N$percent.bias),
+abs(sim_23_standard_summary@individuals$N$percent.bias),
+abs(sim_24_standard_summary@individuals$N$percent.bias),
+abs(sim_25_standard_summary@individuals$N$percent.bias),
+abs(sim_31_standard_summary@individuals$N$percent.bias),
+abs(sim_32_standard_summary@individuals$N$percent.bias),
+abs(sim_33_standard_summary@individuals$N$percent.bias),
+abs(sim_34_standard_summary@individuals$N$percent.bias),
+abs(sim_35_standard_summary@individuals$N$percent.bias),
+abs(sim_41_standard_summary@individuals$N$percent.bias),
+abs(sim_42_standard_summary@individuals$N$percent.bias),
+abs(sim_43_standard_summary@individuals$N$percent.bias),
+abs(sim_44_standard_summary@individuals$N$percent.bias),
+abs(sim_45_standard_summary@individuals$N$percent.bias),
+abs(sim_51_standard_summary@individuals$N$percent.bias),
+abs(sim_52_standard_summary@individuals$N$percent.bias),
+abs(sim_53_standard_summary@individuals$N$percent.bias),
+abs(sim_54_standard_summary@individuals$N$percent.bias),
+abs(sim_55_standard_summary@individuals$N$percent.bias)
+)
+
+#ROW THEN COLUMN
+
+standard_summary_bias.data <- 
+  matrix(standard_summary_bias, nrow = 5, ncol = 5, byrow = TRUE)
+
+standard_summary_bias.data_melt <- melt(standard_summary_bias.data)
+
+standard_model_output <- ggplot(standard_summary_bias.data_melt, aes(X2, X1)) +
+  geom_tile(aes(fill = value)) +
+  labs(y = "Beta 0", x = "Beta 1", title = "Standard Model Bias")
+standard_model_output
+
+# scale_x_continuous(limits = c(0.052, 0.056), breaks = seq(0.052, 0.056, 5)) +
+#   scale_y_continuous(limits = c(4, 8), breaks = seq(4, 8, 5)) +
+
+```
+
+```{r bias size cov summary}
+size_cov_summary_bias <- c(
+abs(sim_11_size_cov_summary@individuals$N$percent.bias), abs(sim_12_size_cov_summary@individuals$N$percent.bias),
+abs(sim_13_size_cov_summary@individuals$N$percent.bias),
+abs(sim_14_size_cov_summary@individuals$N$percent.bias),
+abs(sim_15_size_cov_summary@individuals$N$percent.bias),
+abs(sim_21_size_cov_summary@individuals$N$percent.bias),
+abs(sim_22_size_cov_summary@individuals$N$percent.bias),
+abs(sim_23_size_cov_summary@individuals$N$percent.bias),
+abs(sim_24_size_cov_summary@individuals$N$percent.bias),
+abs(sim_25_size_cov_summary@individuals$N$percent.bias),
+abs(sim_31_size_cov_summary@individuals$N$percent.bias),
+abs(sim_32_size_cov_summary@individuals$N$percent.bias),
+abs(sim_33_size_cov_summary@individuals$N$percent.bias),
+abs(sim_34_size_cov_summary@individuals$N$percent.bias),
+abs(sim_35_size_cov_summary@individuals$N$percent.bias),
+abs(sim_41_size_cov_summary@individuals$N$percent.bias),
+abs(sim_42_size_cov_summary@individuals$N$percent.bias),
+abs(sim_43_size_cov_summary@individuals$N$percent.bias),
+abs(sim_44_size_cov_summary@individuals$N$percent.bias),
+abs(sim_45_size_cov_summary@individuals$N$percent.bias),
+abs(sim_51_size_cov_summary@individuals$N$percent.bias),
+abs(sim_52_size_cov_summary@individuals$N$percent.bias),
+abs(sim_53_size_cov_summary@individuals$N$percent.bias),
+abs(sim_54_size_cov_summary@individuals$N$percent.bias),
+abs(sim_55_size_cov_summary@individuals$N$percent.bias))
+
+#ROW THEN COLUMN
+
+size_cov_summary_bias.data <- 
+  matrix(size_cov_summary_bias, nrow = 5, ncol = 5, byrow = TRUE)
+
+size_cov_summary_bias.data_melt <- melt(size_cov_summary_bias.data)
+
+size_cov_model_output <- ggplot(size_cov_summary_bias.data_melt, aes(X2, X1)) +
+  geom_tile(aes(fill = value)) +
+  labs(y = "Beta 0", x = "Beta 1", title = "Size Covariate Model Bias")
+size_cov_model_output
+
+```
+
+
+
+EOF

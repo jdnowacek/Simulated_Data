@@ -1,0 +1,73 @@
+---
+title: "SetUp Packages etc"
+output:
+  pdf_document: default
+  pdf: default
+date: "2023-06-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo=FALSE}
+duck <- read.csv(file="https://workshops.distancesampling.org/online-course/exercisepdfs/Ch7/datasets/ducks-area-effort.csv",
+header=TRUE)
+library("Distance")
+
+library("mrds")
+#install.packages("DSsim")
+#library("DSsim")
+
+library("knitr")
+```
+
+```{r}
+summary(duck$distance)
+hist(duck$distance, xlab="Distance (m)")
+```
+
+```{r}
+conversion <- convert_units("meter", "kilometer", "square kilometer")
+duck.model1 <- ds(duck, key="hn", adjustment=NULL, convert_units = conversion)
+
+```
+
+
+```{r}
+duck.model3 <- ds(duck, key="hr", adjustment="herm", convert_units = conversion)
+
+duck.model3$ddf
+```
+
+```{r}
+names(duck.model1)
+
+gof_ds(duck.model1)
+```
+
+```{r}
+str(duck.model1$dht$individuals, max=1)
+```
+
+```{r}
+duck.model1$dht$individuals$summary |>
+  kable(digits = 3)
+
+duck.model1$dht$individuals$N |>
+  kable(digits = 3)
+
+duck.model1$dht$individuals$D |>
+  kable(digits = 3)
+```
+
+
+
+
+
+
+
+
+
+
+
