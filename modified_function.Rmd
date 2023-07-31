@@ -1,0 +1,89 @@
+---
+title: "Modified make.pop_desc"
+output: pdf_document
+date: "2023-07-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## New version of the make.population.description function
+
+```{r new function}
+make.population_description_modified <- function (region = make.region(), density = make.density(), 
+  covariates = list(), N = numeric(0), fixed.N = TRUE) 
+{
+  if (any(names(covariates) == "")) {
+    stop("All elements in the covariate list must be names with the covariate name.", 
+      call. = FALSE)
+  }
+  for (cov in seq(along = covariates)) {
+    if ("distribution" %in% names(covariates[[cov]]) || 
+      is(covariates[[cov]], "data.frame")) {
+      covariates[[cov]] <- list(covariates[[cov]])
+    }
+  }
+  cov.names <- names(covariates)
+  for (cov in seq(along = covariates)) {
+    strat.list <- list()
+    for (i in seq(along = covariates[[cov]])) {
+      if (is(covariates[[cov]][[i]], "data.frame")) {
+        if (!all(c("level", "prob") %in% names(covariates[[cov]][[i]]))) {
+          stop("Covariate dataframes must contain the columns 'level' and 'prob'.", 
+            call. = FALSE)
+        }
+        if (length(covariates[[cov]]) > 1) {
+          stop("Please only supply one covariate dataframe with strata as a column for multi-strata covariate values.", 
+            call. = FALSE)
+        }
+        strat.names <- region@strata.name
+        if ("strata" %in% names(covariates[[cov]][[i]]) && 
+          length(covariates[[cov]]) == 1 && length(strat.names) > 
+          1) {
+          strat.names.check <- unique(covariates[[cov]][[i]]$strata)
+          if (any(sort(strat.names) != sort(strat.names.check))) {
+            stop(paste("The strata names in the covariate dataframe for ", 
+              cov.names[cov], " do not match the strata names in the region object.", 
+              sep = ""), call. = FALSE)
+          }
+          for (j in seq(along = strat.names)) {
+            cov.dataframe <- covariates[[cov]][[i]]
+            strat.list[[j]] <- cov.dataframe[cov.dataframe$strata == 
+              strat.names[j], c("level", "prob")]
+          }
+        }
+      }
+      else if (is(covariates[[cov]][[i]], "list")) {
+        params <- switch(covariates[[cov]][[i]]$distribution, 
+          normal = c("mean", "sd"), poisson = "lambda", 
+          ztruncpois = "mean", lognormal = c("meanlog", 
+            "sdlog"))
+        if (!all(params %in% names(covariates[[cov]][[i]]))) {
+          stop(paste("You have not supplied all the required parameters (", 
+            paste(params, collapse = ", "), ") for the following covariate distribution: ", 
+            covariates[[cov]][[i]]$distribution, sep = ""), 
+            call. = FALSE)
+        }
+        pvs <- covariates[[cov]][[i]]
+        param.vals <- switch(covariates[[cov]][[i]]$distribution, 
+          normal = list(mean = pvs$mean, sd = pvs$sd), 
+          poisson = list(lambda = pvs$lambda), ztruncpois = list(mean = pvs$mean), 
+          lognormal = list(meanlog = pvs$meanlog, sdlog = pvs$sdlog))
+        old.format <- list(covariates[[cov]][[i]]$distribution, 
+          param.vals)
+        strat.list[[i]] <- old.format
+      }
+    }
+    if (length(strat.list) > 0) {
+      covariates[[cov]] <- strat.list
+    }
+  }
+  pop.description <- new(Class = "Population.Description", 
+    N = N, density = density, region.obj = region, covariates = covariates, 
+    gen.by.N = fixed.N)
+  return(pop.description)
+}
+
+```
+

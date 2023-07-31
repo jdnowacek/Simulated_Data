@@ -55,18 +55,18 @@ plot(density, region, scale = 1)
 
 ```{r population description}
  # Create a covariate list describing the distribution of cluster sizes
-
- s <- 20
- covariate.list <- list()
- covariate.list$size <- list(list(distribution = "ztruncpois", mean = s))
-
- # Define the population description
- 
- pop.desc <- make.population.description(region = region,
-                                         density = density,
-                                         covariates = covariate.list,
-                                         N = 1000,
-                                         fixed.N = TRUE)
+# 
+#  s <- 20
+#  covariate.list <- list()
+#  covariate.list$size <- list(list(distribution = "ztruncpois", mean = s))
+# 
+#  # Define the population description
+#  
+#  pop.desc <- make.population.description(region = region,
+#                                          density = density,
+#                                          covariates = covariate.list,
+#                                          N = 1000,
+#                                          fixed.N = TRUE)
 ```
 
 ```{r population description ztnbinom}
@@ -144,15 +144,19 @@ rztnbinom <- function(n, size, prob){
 }
 
 generated_values <- rztnbinom(10000, size = opt_r, prob = opt_p)
-generated_values <- as.data.frame(generated_values, optional = TRUE, col.names = c(prob))
+generated_values <- as.data.frame(generated_values, optional = TRUE)
 
-# generated_values <- generated_values |>
-  # mutate(level = 1) 
+colnames(generated_values)[1]<-"prob"
+
+generated_values <- generated_values |>
+  mutate(level = "size")
+
+generated_values <- generated_values[, c(2, 1)]
 
 # throwing errors, something about column names, fix later
 
  covariate.list2 <- list()
- covariate.list2$size <- list(list(distribution = "ztruncpois", mean = s))
+ covariate.list2$size <- list(list(distribution = generated_values))
 
  # Define the population description
  
