@@ -58,7 +58,7 @@ make.population_description_modified <- function (region = make.region(), densit
         params <- switch(covariates[[cov]][[i]]$distribution, 
           normal = c("mean", "sd"), poisson = "lambda", 
           ztruncpois = "mean", lognormal = c("meanlog", 
-            "sdlog")), 
+            "sdlog")) 
         if (!all(params %in% names(covariates[[cov]][[i]]))) {
           stop(paste("You have not supplied all the required parameters (", 
             paste(params, collapse = ", "), ") for the following covariate distribution: ", 
