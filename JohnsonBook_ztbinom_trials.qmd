@@ -1,0 +1,82 @@
+---
+title: "JohnsonBook_ztbinom_trials"
+format: html
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+d_ztbinom_book <- function(k, p, N) {
+  q = p + 1
+  
+  prob = (1/(1-(q^-N))) * choose(n = N+k-1, k = N-1) * (p/q)^k * (1 - (p/q))^N
+  
+  return(prob)
+}
+```
+
+```{r}
+mean_ztbinom_book <- function(p, N) {
+  q = p + 1
+  
+  mean = N*p / (1-(q^-N))
+  
+  return(mean)
+}
+```
+
+```{r}
+# var_ztbinom_book <- function(p, N) {
+#   q = p + 1
+#   
+#   var = ((N*p*q) / (1-(q^-N))) * (1 - (1/N*p*q)) * (1 / (1-(q^-N)) - 1)
+#   
+#   return(var)
+# }
+
+var_ztbinom_book <- function(p, N) {
+  q = p + 1
+  
+  var = ( (N*p*q) / (1-(q^-N)) ) * ( 1 - (N*p / q) * ( 1 / (1-(q^-N))   - 1)  )
+  
+  return(var)
+}
+```
+
+
+```{r}
+d_ztbinom_book(k = 5, p = 0.5, N = 10)
+
+mean_ztbinom_book(p = 0.5, N = 10)
+
+var_ztbinom_book(p = 0.5, N = 10)
+```
+
+verified with manual check, this function works
+
+```{r}
+# pdf build
+
+pdf <- d_ztbinom_book(k = seq(1, 20, 1), p = 0.5, N = 10)
+
+plot(seq(1, 20, 1), pdf, type = "l")
+
+sum(pdf)
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+

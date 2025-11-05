@@ -44,6 +44,8 @@ region <- make.region(region.name = "Test Area",
                       units = "m")
 plot(region)
 ```
+
+
 ```{r density}
 # Creates a uniform density over the study region
 density <- make.density(region = region,
@@ -53,7 +55,7 @@ density <- make.density(region = region,
 plot(density, region, scale = 1)
 ```
 
-Population description based on the zero-truncated poissant distribution.
+Population description based on the zero-truncated poisson distribution.
 
 ```{r population description}
 # Create a covariate list describing the distribution of cluster sizes
@@ -183,6 +185,8 @@ design <- make.design(region = region,
 transects <- generate.transects(design)
 plot(region, transects)
 ```
+
+
 ```{r model parameters}
 # Defines the beta values, the models, the number of beta permutations and the 
 # truncation distance 

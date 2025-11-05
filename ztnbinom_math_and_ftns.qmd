@@ -19,6 +19,8 @@ p = mu/var
 r = (mu^2)/(var - mu)
 ```
 
+## Numerical Method
+
 ```{r mathematical}
 calculated_mean = mu / (1 - dnbinom(0, prob = p, size = r))
 print(calculated_mean)
@@ -82,7 +84,7 @@ neg_binom_mean_var <- function(p, r) {
   mu <- r* (1 - p) / p
   mean_val <- mu / (1 - dnbinom(0, prob = p, size = r))
   
-  muvalues <- c(1:100000)
+  values <- c(1:100000)
 
 Eof_x_sqrd <- values^2 * (dnbinom(values, prob = p, size = r))
 
@@ -100,6 +102,10 @@ var_val <- (Eof_x_sqrd - Eof_x)
   return(c(mean_val, var_val))
 }
 
+neg_binom_mean_var(0.5, 3)
+```
+
+```{r}
 # Objective function to minimize the squared differences between the desired mean and variance
 # and the calculated mean and variance
 objective_function <- function(params, desired_mean, desired_var, debug = FALSE) {
@@ -215,7 +221,38 @@ ggplot(data, aes(x = data)) +
 
 print(mean(data$data))
 print(var(data$data))
-
 ```
 
+
+## Analytical method
+
+```{r}
+rztnbinom <- function(n, k, N, P, Q){
+  
+}
+```
+
+
 EOF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
