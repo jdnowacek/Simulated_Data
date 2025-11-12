@@ -18,6 +18,19 @@ d_ztbinom_book <- function(k, p, N) {
 ```
 
 ```{r}
+cdf_ztbinom_book <- function(k, p, N) {
+  q = p + 1
+  
+  cumulative_prob <- 0
+  for (i in 1:k) {
+    cumulative_prob = cumulative_prob + d_ztbinom_book(i, p, N)
+  }
+  
+  return(cumulative_prob)
+}
+```
+
+```{r}
 mean_ztbinom_book <- function(p, N) {
   q = p + 1
   
@@ -28,26 +41,24 @@ mean_ztbinom_book <- function(p, N) {
 ```
 
 ```{r}
-# var_ztbinom_book <- function(p, N) {
-#   q = p + 1
-#   
-#   var = ((N*p*q) / (1-(q^-N))) * (1 - (1/N*p*q)) * (1 / (1-(q^-N)) - 1)
-#   
-#   return(var)
-# }
-
 var_ztbinom_book <- function(p, N) {
   q = p + 1
   
-  var = ( (N*p*q) / (1-(q^-N)) ) * ( 1 - (N*p / q) * ( 1 / (1-(q^-N))   - 1)  )
+  var = ( (N*p*q) / (1-(q^-N)) ) * ( 1 - (N*p / q) * ( 1 / (1-(q^-N)) - 1)  )
   
   return(var)
 }
 ```
 
+```{r}
+
+```
+
 
 ```{r}
-d_ztbinom_book(k = 5, p = 0.5, N = 10)
+d_ztbinom_book(k = 3, p = 0.5, N = 10)
+
+cdf_ztbinom_book(k = 25, p = 0.5, N = 10)
 
 mean_ztbinom_book(p = 0.5, N = 10)
 
@@ -61,20 +72,150 @@ verified with manual check, this function works
 
 pdf <- d_ztbinom_book(k = seq(1, 20, 1), p = 0.5, N = 10)
 
-plot(seq(1, 20, 1), pdf, type = "l")
+pdf_df <- as.data.frame(pdf)
+
+pdf_df <- pdf_df |>
+  mutate(k = seq(1, 20, 1)) |>
+  rename(prob = pdf)
+
+pdf_df |>
+  ggplot(aes(x = k, y = prob)) +
+  geom_line() +
+  theme_bw() 
 
 sum(pdf)
 ```
-
 ```{r}
+cdf <- rep(0, 20)
 
+for (i in 1:20) {
+  cdf[i] <- cdf_ztbinom_book(k = i, p = 0.5, N = 10)
+}
+
+cdf_df <- as.data.frame(cdf)
+
+cdf_df <- cdf_df |>
+  mutate(k = seq(1, 20, 1)) |>
+  rename(prob = cdf)
 ```
 
 
+```{r}
+cdf_df |>
+  ggplot(aes(x = k, y = prob)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(0, 20, 1)) +
+  scale_y_continuous(breaks = seq(-0.1, 1, 0.1))
+```
+
+```{r}
+r_ztbinom_book <- function(n, p, N) {
+  
+  draws <- rep(NA, n)
+  
+  upper = N*10
+  
+  min = cdf_ztbinom_book(k = 1, p = p, N = N)
+  max = cdf_ztbinom_book(k = upper, p = p, N = N)
+  
+  # cdf_vals <- cdf_ztbinom_book(seq(1, N*10, 1), p = p, N = N)
+  
+  cdf_vals <- rep(0, upper)
+  
+  for (i in 1:upper) {
+    cdf_vals[i] <- cdf_ztbinom_book(k = i, p = 0.5, N = 10)
+  }
+  
+  for (i in 1:n) {
+    unif_draw <- runif(n = 1, min = min, max = max)
+    
+    dist_to_0 = cdf_vals - unif_draw
+    
+    draw <- which.min(abs(dist_to_0))
+    
+    draws[i] <- draw
+  }
+  return(draws)
+}
+```
+
+```{r}
+set.seed(1)
+
+n = 100000
+N = 10
+p = 0.5
+
+# pdf <- d_ztbinom_book(k = seq(1, N*10, 1), p = p, N = N)
+# 
+# pdf_df <- as.data.frame(pdf)
+# 
+# pdf_df <- pdf_df |>
+#   mutate(k = seq(1, N*10, 1)) |>
+#   rename(prob = pdf)
+# 
+# pdf_df |>
+#   ggplot(aes(x = k, y = prob)) +
+#   geom_line() +
+#   theme_bw() 
+
+d <- r_ztbinom_book(n, p, N)
+
+draws <- as.data.frame(d) |>
+  rename(draws = d) 
+
+draws |>
+  ggplot(aes(x = draws)) +
+  geom_histogram(binwidth = 1) +
+  theme_bw() 
+```
+
+```{r}
+mean(draws$draws)
+var(draws$draws)
+```
+
+```{r}
+pdf <- d_ztbinom_book(k = seq(1, 20, 1), p = 0.5, N = 10)
+
+pdf_df <- as.data.frame(pdf)
+
+pdf_df <- pdf_df |>
+  mutate(k = seq(1, 20, 1)) |>
+  rename(prob = pdf)
+
+pdf_df |>
+  ggplot(aes(x = k, y = prob)) +
+  geom_line() +
+  theme_bw() 
+
+# sum(pdf)
+```
 
 
+$$
+0 = NP(1+P)^{4n+1} + N^2P^2(1+P)^{4n} - 2NP(1+P)^{3n+1} - (1+P)^{3n+1} - 2N^2P^2(1+P)^{3n}
+ - NP(1+P)^{3n} - 2N^2P^2(1+P)^{3n-1} + NP(1+P)^{2n+1} - 2(1+P)^{2n+1}
+ + 2N^2P^2(1+P)^{2n} + 5NP(1+P)^{2n} + 4N^2P^2(1+P)^{2n-1} - 2NP(1+P)^{n+1}
+ + (1+P)^{n+1} - 2N^2P^2(1+P)^{n} - NP(1+P)^{n} - 2N^2P^2(1+P)^{n-1}
+ + NP(1+P) + N^2P^2
+$$
 
+$$
+\frac{NP(1+P)}{1 - (1+P)^{-n}}
+\left[
+1 - \left(\frac{NP}{1+P}\right)
+\left(\frac{1}{1 - (1+P)^{-n}} - 1\right)
+\right]
+=
+\left(NP(1+P) + (NP)^2\right)
+\frac{1}{1 - (1+P)^{-n}}
+- \left(
+\frac{NP}{1 - (1+P)^{-n}}
+\right)^2
 
+$$
 
 
 
