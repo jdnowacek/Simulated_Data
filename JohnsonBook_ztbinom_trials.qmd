@@ -51,11 +51,6 @@ var_ztbinom_book <- function(p, N) {
 ```
 
 ```{r}
-
-```
-
-
-```{r}
 d_ztbinom_book(k = 3, p = 0.5, N = 10)
 
 cdf_ztbinom_book(k = 25, p = 0.5, N = 10)
@@ -64,8 +59,6 @@ mean_ztbinom_book(p = 0.5, N = 10)
 
 var_ztbinom_book(p = 0.5, N = 10)
 ```
-
-verified with manual check, this function works
 
 ```{r}
 # pdf build
@@ -99,7 +92,6 @@ cdf_df <- cdf_df |>
   rename(prob = cdf)
 ```
 
-
 ```{r}
 cdf_df |>
   ggplot(aes(x = k, y = prob)) +
@@ -119,12 +111,10 @@ r_ztbinom_book <- function(n, p, N) {
   min = cdf_ztbinom_book(k = 1, p = p, N = N)
   max = cdf_ztbinom_book(k = upper, p = p, N = N)
   
-  # cdf_vals <- cdf_ztbinom_book(seq(1, N*10, 1), p = p, N = N)
-  
   cdf_vals <- rep(0, upper)
   
   for (i in 1:upper) {
-    cdf_vals[i] <- cdf_ztbinom_book(k = i, p = 0.5, N = 10)
+    cdf_vals[i] <- cdf_ztbinom_book(k = i, p = p, N = N)
   }
   
   for (i in 1:n) {
@@ -144,8 +134,8 @@ r_ztbinom_book <- function(n, p, N) {
 set.seed(1)
 
 n = 100000
-N = 10
-p = 0.5
+N = 18
+p = 0.75
 
 # pdf <- d_ztbinom_book(k = seq(1, N*10, 1), p = p, N = N)
 # 
@@ -177,7 +167,7 @@ var(draws$draws)
 ```
 
 ```{r}
-pdf <- d_ztbinom_book(k = seq(1, 20, 1), p = 0.5, N = 10)
+pdf <- d_ztbinom_book(k = seq(1, 20, 1), p = 0.5114, N = 9.2648)
 
 pdf_df <- as.data.frame(pdf)
 
@@ -192,7 +182,6 @@ pdf_df |>
 
 # sum(pdf)
 ```
-
 
 $$
 0 = NP(1+P)^{4n+1} + N^2P^2(1+P)^{4n} - 2NP(1+P)^{3n+1} - (1+P)^{3n+1} - 2N^2P^2(1+P)^{3n}
@@ -216,6 +205,83 @@ $$
 \right)^2
 
 $$
+
+# Optimization
+
+```{r}
+# Define the system of equations (to be solved for roots)
+# The function must return a vector of residuals (errors)
+zt_system_of_eq <- function(vars, mu_obs, sigma_sq_obs) {
+    
+    # 1. Assign parameters (N and P are the unknowns)
+    N <- vars[1]
+    P <- vars[2]
+    
+    # --- Constraint Checks ---
+    # Since N and P must be positive, return a massive error if they are not.
+    if (N <= 0 || P <= 0) {
+        return(c(1e+10, 1e+10))
+    }
+    
+    # --- Calculation of Residuals ---
+    
+    # Term: (1 + P)^(-N)
+    common_exp <- (1 + P)^(-N)
+    
+    # Residual 1: Mean Equation
+    # f1(N, P) = [NP / (1 - (1+P)^-N)] - mu_obs = 0
+    f1_residual <- (N * P / (1 - common_exp)) - mu_obs
+    
+    # Residual 2: Simplified Variance Equation
+    # f2(N, P) = [mu_obs*(1+P) - mu_obs^2 * (1+P)^-N] - sigma_sq_obs = 0
+    f2_residual <- (mu_obs * (1 + P) - mu_obs^2 * common_exp) - sigma_sq_obs
+    
+    # The solver aims to make both of these residuals zero
+    return(c(f1_residual, f2_residual))
+}
+```
+
+```{r}
+# Load the necessary library
+library(rootSolve)
+
+# --- USER INPUTS ---
+# Replace these with your observed values
+observed_mean <- 12.99958
+observed_variance <- 23.96926
+
+# --- INITIAL GUESS ---
+# A crucial step. [N_guess, P_guess]
+initial_guess <- c(10.0, 0.5) 
+
+# --- Solve the system ---
+solution <- multiroot(
+    f = zt_system_of_eq,        # The function containing the equations
+    start = initial_guess,      # The initial guess for [N, P]
+    mu_obs = observed_mean,
+    sigma_sq_obs = observed_variance) # The fixed parameters (mu, sigma^2)
+
+# --- Output Results ---
+print(solution)
+
+# Access the final parameters:
+N_final <- solution$root[1]
+P_final <- solution$root[2]
+
+cat(sprintf("\nOptimized Parameters:\n N = %.4f\n P = %.4f\n", N_final, P_final))
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
