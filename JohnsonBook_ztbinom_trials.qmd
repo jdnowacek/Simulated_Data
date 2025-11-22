@@ -159,9 +159,7 @@ draws |>
   ggplot(aes(x = draws)) +
   geom_histogram(binwidth = 1) +
   theme_bw() 
-```
 
-```{r}
 mean(draws$draws)
 var(draws$draws)
 ```
@@ -184,96 +182,227 @@ pdf_df |>
 ```
 
 $$
-0 = NP(1+P)^{4n+1} + N^2P^2(1+P)^{4n} - 2NP(1+P)^{3n+1} - (1+P)^{3n+1} - 2N^2P^2(1+P)^{3n}
- - NP(1+P)^{3n} - 2N^2P^2(1+P)^{3n-1} + NP(1+P)^{2n+1} - 2(1+P)^{2n+1}
- + 2N^2P^2(1+P)^{2n} + 5NP(1+P)^{2n} + 4N^2P^2(1+P)^{2n-1} - 2NP(1+P)^{n+1}
- + (1+P)^{n+1} - 2N^2P^2(1+P)^{n} - NP(1+P)^{n} - 2N^2P^2(1+P)^{n-1}
+0 = NP(1+P)^{4N+1} + N^2P^2(1+P)^{4N} - 2NP(1+P)^{3N+1} - (1+P)^{3N+1} - 2N^2P^2(1+P)^{3N}
+ - NP(1+P)^{3N} - 2N^2P^2(1+P)^{3N-1} + NP(1+P)^{2N+1} - 2(1+P)^{2N+1}
+ + 2N^2P^2(1+P)^{2N} + 5NP(1+P)^{2N} + 4N^2P^2(1+P)^{2N-1} - 2NP(1+P)^{N+1}
+ + (1+P)^{N+1} - 2N^2P^2(1+P)^{N} - NP(1+P)^{N} - 2N^2P^2(1+P)^{N-1}
  + NP(1+P) + N^2P^2
 $$
 
 $$
-\frac{NP(1+P)}{1 - (1+P)^{-n}}
+\frac{NP(1+P)}{1 - (1+P)^{-N}}
 \left[
 1 - \left(\frac{NP}{1+P}\right)
-\left(\frac{1}{1 - (1+P)^{-n}} - 1\right)
+\left(\frac{1}{1 - (1+P)^{-N}} - 1\right)
 \right]
 =
 \left(NP(1+P) + (NP)^2\right)
-\frac{1}{1 - (1+P)^{-n}}
+\frac{1}{1 - (1+P)^{-N}}
 - \left(
-\frac{NP}{1 - (1+P)^{-n}}
+\frac{NP}{1 - (1+P)^{-N}}
 \right)^2
 
 $$
 
-# Optimization
+```{r}
+polynomial <- function(N, P) {
+  0 ==
+    N*P*(1+P)^(4*N+1) +
+    N^2*P^2*(1+P)^(4*N) -
+    2*N*P*(1+P)^(3*N+1) -
+    (1+P)^(3*N+1) -
+    2*N^2*P^2*(1+P)^(3*N) -
+    N*P*(1+P)^(3*N) -
+    2*N^2*P^2*(1+P)^(3*N-1) +
+    N*P*(1+P)^(2*N+1) -
+    2*(1+P)^(2*N+1) +
+    2*N^2*P^2*(1+P)^(2*N) +
+    5*N*P*(1+P)^(2*N) +
+    4*N^2*P^2*(1+P)^(2*N-1) -
+    2*N*P*(1+P)^(N+1) +
+    (1+P)^(N+1) -
+    2*N^2*P^2*(1+P)^(N) -
+    N*P*(1+P)^(N) -
+    2*N^2*P^2*(1+P)^(N-1) +
+    N*P*(1+P) +
+    N^2*P^2
+}
+
+# denom <- (1 - (1+P)^(-N))
+# 
+# mean_estimator <- function(N, P) {
+#   calc_mean <- (N*P) / denom)
+#   return(calc_mean)
+# }
+# 
+# 
+# variance_estimator <- function(N, P) {
+#   calc_var <- 
+#     (N*P*(1+P) / denom) * 
+#     (
+#       1 - ((N*P)/1+P) * ((1 / (denom)) - 1)
+#     )
+#   return(calc_var)
+# }
+```
 
 ```{r}
-# Define the system of equations (to be solved for roots)
-# The function must return a vector of residuals (errors)
-zt_system_of_eq <- function(vars, mu_obs, sigma_sq_obs) {
-    
-    # 1. Assign parameters (N and P are the unknowns)
-    N <- vars[1]
-    P <- vars[2]
-    
-    # --- Constraint Checks ---
-    # Since N and P must be positive, return a massive error if they are not.
-    if (N <= 0 || P <= 0) {
-        return(c(1e+10, 1e+10))
-    }
-    
-    # --- Calculation of Residuals ---
-    
-    # Term: (1 + P)^(-N)
-    common_exp <- (1 + P)^(-N)
-    
-    # Residual 1: Mean Equation
-    # f1(N, P) = [NP / (1 - (1+P)^-N)] - mu_obs = 0
-    f1_residual <- (N * P / (1 - common_exp)) - mu_obs
-    
-    # Residual 2: Simplified Variance Equation
-    # f2(N, P) = [mu_obs*(1+P) - mu_obs^2 * (1+P)^-N] - sigma_sq_obs = 0
-    f2_residual <- (mu_obs * (1 + P) - mu_obs^2 * common_exp) - sigma_sq_obs
-    
-    # The solver aims to make both of these residuals zero
-    return(c(f1_residual, f2_residual))
+# mean_estimator(10, 0.5)
+# 
+# variance_estimator(10, 0.5)
+```
+
+
+# Optimization
+```{r}
+# ---------------------------------------------------------
+# 1. The "Forward" Theoretical Functions (Eq 41.1 & 41.2)
+# ---------------------------------------------------------
+
+mean_tnb <- function(N, P) {
+  Q <- 1 + P
+  denom <- 1 - Q^(-N)
+  if (abs(denom) < 1e-15) return(Inf)
+  
+  # Eq 41.1
+  return( (N * P) / denom )
+}
+
+variance_tnb <- function(N, P) {
+  Q <- 1 + P
+  denom <- 1 - Q^(-N)
+  if (abs(denom) < 1e-15) return(Inf)
+  
+  # Eq 41.2 (Consolidated)
+  # Var = [Mean_Untruncated * Q / Denom] * [ 1 - (Mean_Untruncated/Q) * (1/Denom - 1) ]
+  
+  term_lead <- (N * P * Q) / denom
+  term_bracket <- 1 - ( (N * P) / Q ) * ( (1/denom) - 1 )
+  
+  return( term_lead * term_bracket )
 }
 ```
 
 ```{r}
-# Load the necessary library
-library(rootSolve)
+# ---------------------------------------------------------
+# 2. The Optimizer (Solving for N, P)
+# ---------------------------------------------------------
 
-# --- USER INPUTS ---
-# Replace these with your observed values
-observed_mean <- 12.99958
-observed_variance <- 23.96926
+find_parameters <- function(observed_mean, observed_var) {
+  
+  # Objective: Minimize the difference between Theoretical (Eq 41) and Observed
+  objective_fn <- function(params) {
+    N <- params[1]
+    P <- params[2]
+    
+    theo_mean <- mean_tnb(N, P)
+    theo_var  <- variance_tnb(N, P)
+    
+    # Squared Error Cost
+    error <- (theo_mean - observed_mean)^2 + (theo_var - observed_var)^2
+    return(error)
+  }
+  
+  # Initial Guess
+  start_guesses <- c(10, 0.5)
+  
+  result <- optim(
+    par = start_guesses,
+    fn = objective_fn,
+    method = "L-BFGS-B",
+    lower = c(0.001, 0.001), # Parameters must be positive
+    upper = c(Inf, Inf)
+  )
+  
+  return(list(
+    Estimated_N = result$par[1],
+    Estimated_P = result$par[2],
+    Goodness_of_Fit = result$value # Closer to 0 is better
+  ))
+}
+```
 
-# --- INITIAL GUESS ---
-# A crucial step. [N_guess, P_guess]
-initial_guess <- c(10.0, 0.5) 
-
-# --- Solve the system ---
-solution <- multiroot(
-    f = zt_system_of_eq,        # The function containing the equations
-    start = initial_guess,      # The initial guess for [N, P]
-    mu_obs = observed_mean,
-    sigma_sq_obs = observed_variance) # The fixed parameters (mu, sigma^2)
-
-# --- Output Results ---
-print(solution)
-
-# Access the final parameters:
-N_final <- solution$root[1]
-P_final <- solution$root[2]
-
-cat(sprintf("\nOptimized Parameters:\n N = %.4f\n P = %.4f\n", N_final, P_final))
+```{r}
+find_parameters(3, 4)
 ```
 
 
+```{r}
+d <- r_ztbinom_book(n = 10000, p = 0.8, N = 3.17)
 
+draws <- as.data.frame(d) |>
+  rename(draws = d) 
 
+draws |>
+  ggplot(aes(x = draws)) +
+  geom_histogram(binwidth = 1) +
+  theme_bw() 
+
+mean(draws$draws)
+var(draws$draws)
+```
+
+# Option to replace my current rztbinom function
+
+The short answer is that in R, the choose(n, k) function already handles fractional values automatically! It uses the Generalized Gamma function definition of factorials under the hood.However, relying on choose() for distributions is numerically unstable (it can result in huge numbers that overflow).Here is the breakdown of how to handle fractional $N$ robustly, and how to drastically speed up your sampler by realizing this distribution exists in base R.1. The Robust Way to Calculate "Choose" (Log-Gamma)Mathematically, for fractional $n$, the factorial $n!$ is replaced by $\Gamma(n+1)$.$$\binom{n}{k} = \frac{\Gamma(n+1)}{\Gamma(k+1)\Gamma(n-k+1)}$$In R, you should use lgamma() (the log of the Gamma function) to avoid massive numbers during intermediate calculation steps:R# Instead of choose(N + k - 1, N - 1)
+# Use this:
+val <- lgamma(N + k) - lgamma(N) - lgamma(k + 1)
+coeff <- exp(val)
+2. The "R" Way (Drastically Faster)Your distribution is the Zero-Truncated Negative Binomial.R already has highly optimized C-code for the Negative Binomial (dnbinom, qnbinom, etc.) which natively accepts fractional N (the size parameter).You just need to map your textbook parameters ($N, P$) to R's parameters ($size, prob$).Textbook $N$ $\rightarrow$ R sizeTextbook $P$ $\rightarrow$ R prob $= \frac{1}{1+P}$The Optimized SamplerInstead of building a CDF loop (which is slow), we can use Inverse Transform Sampling on the untruncated Negative Binomial, but forced to skip zero.The Logic:Calculate the probability of Zero in the untruncated world ($p_0$).Draw a uniform random number $u$ between $p_0$ and 1.Find the quantile of $u$ using the standard Negative Binomial function.Here is the complete, optimized code replacing your three functions:R# 1. The Probability Mass Function (PMF)
+# Replaces d_ztbinom_book
+d_ztbinom_optim <- function(x, p, N) {
+  # Convert Textbook P to R's prob
+  r_prob <- 1 / (1 + p)
+  
+  # Calculate untruncated probability
+  # R handles fractional N (size) automatically here
+  num <- dnbinom(x, size = N, prob = r_prob)
+  
+  # Calculate probability of 0
+  prob_zero <- dnbinom(0, size = N, prob = r_prob)
+  
+  # Adjust for zero-truncation
+  return(num / (1 - prob_zero))
+}
+
+# 2. The Sampler
+# Replaces r_ztbinom_book
+r_ztbinom_optim <- function(n, p, N) {
+  # Convert Textbook P to R's prob
+  r_prob <- 1 / (1 + p)
+  
+  # 1. Calculate the "floor" probability (probability of seeing 0)
+  # This defines the lower bound of our cumulative probability
+  p0 <- dnbinom(0, size = N, prob = r_prob)
+  
+  # 2. Generate Uniform random numbers between p0 and 1
+  # This effectively skips the "0" part of the CDF
+  u <- runif(n, min = p0, max = 1)
+  
+  # 3. Use R's quantile function to map these probabilities back to integers
+  # This is vectorised and infinitely faster than a loop
+  draws <- qnbinom(u, size = N, prob = r_prob)
+  
+  return(draws)
+}
+Why this works for Fractional NIf you check help(dnbinom) in R, it states:"size: target for number of successful trials, or dispersion parameter (the shape parameter of the gamma mixing distribution)."Since the Negative Binomial is a Gamma-Poisson mixture, the size ($N$) parameter is strictly a shape parameter in the Gamma function. It does not need to be an integer.Testing with Fractional NYou can run this snippet to verify it handles fractions correctly:R# Test with Fractional N = 5.5
+set.seed(123)
+N_frac <- 5.5
+P_val <- 0.5
+
+# Generate 10,000 samples
+samples <- r_ztbinom_optim(n = 10000, p = P_val, N = N_frac)
+
+# Check the Mean
+obs_mean <- mean(samples)
+
+# Theoretical Mean (Eq 41.1 from your book)
+# Mean = NP / (1 - (1+P)^-N)
+denom <- 1 - (1 + P_val)^(-N_frac)
+theo_mean <- (N_frac * P_val) / denom
+
+cat("Observed Mean:", obs_mean, "\n")
+cat("Theoretical Mean:", theo_mean, "\n")
 
 
 
