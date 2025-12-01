@@ -1,0 +1,250 @@
+---
+title: "JohnsonBook_ztnbinom_ftns"
+format: html
+editor: source
+---
+
+## Packages
+
+```{r}
+library(tidyverse)
+library(knitr)
+```
+
+## D function
+
+defines a function that returns the probability of an input value, k, in the zero-truncated negative binomial function with the specified p and N
+
+```{r}
+d_ztbinom_book <- function(k, p, N) {
+  
+  generalized_choose <- function(n, k) {
+  return(exp(lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1)))
+  }
+  
+  prob = (1/(1-((1+p)^-N))) * generalized_choose(n = N+k-1, k = N-1) * (p/(1+p))^k * (1 - (p/(1+p)))^N
+  
+  return(prob)
+}
+```
+
+## CDF function
+
+defines a function that returns the cumulative probability up to an input value, k, in the zero-truncated negative binomial function with the specified p and N
+
+```{r}
+cdf_ztbinom_book <- function(k, p, N) {
+  
+  cumulative_prob <- 0
+  for (i in 1:k) {
+    cumulative_prob = cumulative_prob + d_ztbinom_book(i, p, N)
+  }
+  
+  return(cumulative_prob)
+}
+```
+
+## Mean function
+
+calculates the mean of the ztnbinom function based on the parameters, p and N, input
+
+```{r}
+mean_ztbinom_book <- function(p, N) {
+
+  mean = N*p / (1-((1+p)^-N))
+  
+  return(mean)
+}
+```
+
+## Variance function
+
+calculates the variance of the ztnbinom function based on the parameters, p and N, input
+
+```{r}
+var_ztbinom_book <- function(p, N) {
+
+  var = ( (N*p*(1+p)) / (1-((1+p)^-N)) ) * ( 1 - (N*p / (1+p)) * ( 1 / (1-((1+p)^-N)) - 1)  )
+  
+  return(var)
+}
+```
+
+### Testing those functions
+
+tests the functions with a specific use case
+
+```{r}
+d_ztbinom_book(k = 3, p = 0.5, N = 10)
+
+cdf_ztbinom_book(k = 25, p = 0.5, N = 10)
+
+mean_ztbinom_book(p = 0.5, N = 10)
+
+var_ztbinom_book(p = 0.5, N = 10)
+```
+
+## R function
+
+defines a function that returns n draws from a zero truncated negative binomial distribution with the input p and N as parameters. 
+
+```{r}
+r_ztbinom_book <- function(n, p, N) {
+  
+  set.seed(7)
+  
+  # 'price is right' function
+  # takes a value x, and a vector y, finds and returns the y value for which
+  # x is closest to without going over
+  
+  pir <- function(x, y){
+    
+    val <- min(y[y >= x])
+
+    # y <- y - x
+    # val <- min(y[y > 0])
+    # val <- val + x
+    return(val)
+  }
+
+  # sets upper bound for how many cdf values to calculate, keeps sampler fast
+  upper = N*10
+  
+  cdf_vals <- rep(0, upper)
+  return_vals <- rep(0, upper)
+  
+  for (i in 1:upper) {
+    return_vals[i] <- i
+    cdf_vals[i] <- cdf_ztbinom_book(k = i, p = p, N = N)
+  }
+  
+  tab <- tibble(return_vals, cdf_vals)
+  
+  
+  # sets bounds for upper and lower limit of the unif() draw function for the 
+  # inverse cdf sampler
+  
+  # min = cdf_ztbinom_book(k = 1, p = p, N = N)
+  min = 0
+  max = cdf_ztbinom_book(k = upper, p = p, N = N) # can do e^huge
+  draws <- rep(0, n)
+  
+  for (i in 1:n) {
+    unif_draw <- runif(n = 1, min = min, max = max)
+    
+    # which value of the cdf is just higher than this value
+    
+    cdf_val_of_draw <- pir(unif_draw, cdf_vals)
+    
+    draw <- tab$return_vals[tab$cdf_vals == cdf_val_of_draw]
+    
+    draws[i] <- draw
+  }
+  return(draws)
+}
+```
+
+## Function to find N and p from mean and variance
+
+Find parameters to best fit for a given mean and variance
+
+```{r}
+find_parameters <- function(observed_mean, observed_var) {
+  
+  # Objective: Minimize the difference between Theoretical (Eq 41) and Observed
+  objective_fn <- function(params) {
+    
+    N <- params[1]
+    p <- params[2]
+    
+    theo_mean <- mean_ztbinom_book(p, N)
+    theo_var  <- var_ztbinom_book(p, N)
+    
+    # Squared Error Cost
+    error <- ((theo_mean - observed_mean) / observed_mean)^2 + ((theo_var - observed_var) / observed_var)^2
+    return(error)
+  }
+  
+  # Initial Guess
+  start_guesses <- c(observed_mean*0.9, (2.096 - 2.362*(observed_mean/observed_var)))
+  
+  result <- optim(
+    par = start_guesses,
+    fn = objective_fn,
+    method = "L-BFGS-B",
+    lower = c(0.001, 0.001), # Parameters must be positive
+    upper = c(Inf, 0.9999)
+  )
+  
+  return(list(
+    Estimated_N = result$par[1],
+    Estimated_P = result$par[2],
+    Goodness_of_Fit = result$value # Closer to 0 is better
+  ))
+}
+```
+
+### Testing
+
+Set of testing cases for the find_parameters function
+
+```{r}
+# ---------------------------------------------------------
+# 3. Diagnostic Test Suite
+# ---------------------------------------------------------
+
+# Define a set of target Means and Variances to test
+# Note: For Negative Binomial, Variance usually must be > Mean
+test_scenarios <- tribble(
+  ~Target_Mean, ~Target_Var,
+  1.5,          5,
+  4.8566,       6.693906,
+  5.0957,       7.267268,
+  10.5,         100,
+  10.0,         11.0,
+)
+
+# Function to run a single diagnostic row
+run_diagnostic <- function(t_mean, t_var) {
+  
+  # 1. Solve for N and P
+  params <- find_parameters(t_mean, t_var)
+  
+  est_n <- params$Estimated_N
+  est_p <- params$Estimated_P
+  
+  # 3. Generate Simulation
+  # Using the user's r_ztbinom_book function
+  # We generate a large sample size (n=50,000) to ensure stability of the sim mean/var
+  sim_values <- r_ztbinom_book(n = 500000, p = est_p, N = est_n)
+  
+  # 4. Calculate Simulated Metrics
+  sim_mean <- mean(sim_values)
+  sim_var  <- var(sim_values)
+  
+  # 5. Return Row
+  tibble(
+    Target_Mean = t_mean,
+    Target_Var  = t_var,
+    Estimated_N = est_n,
+    Estimated_P = est_p,
+    check_Mean = sim_mean,
+    check_Var = sim_var,
+    # Calculate % error between Input Mean and Sim Mean
+    Mean_Diff_Pct = paste0(round(((sim_mean - t_mean) / t_mean) * 100, 2), "%"),
+    Var_Diff_Pct = paste0(round(((sim_var - t_var) / t_var) * 100, 2), "%")
+  )
+}
+
+# Execute the tests across all scenarios
+results_table <- test_scenarios |>
+  pmap_dfr(function(Target_Mean, Target_Var) {
+    run_diagnostic(Target_Mean, Target_Var)
+  })
+
+# ---------------------------------------------------------
+# 4. Output Formatted Table
+# ---------------------------------------------------------
+
+results_table 
+```

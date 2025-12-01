@@ -14,7 +14,7 @@ $$
  + NP(1+P) + N^2P^2
 $$
 
-$$
+\$\$
 
 \frac{NP(1+P)}{1 - (1+P)^{-N}} \left[
 1 - \left(\frac{NP}{1+P}\right)
@@ -22,7 +22,7 @@ $$
 \right]= \left(NP(1+P) + (NP)\^2\right) \frac{1}{1 - (1+P)^{-N}} -
 \left( \frac{NP}{1 - (1+P)^{-N}} \right)\^2
 
-$$
+\$\$
 
 ```{r}
 library(tidyverse)
@@ -148,7 +148,9 @@ mean_ztbinom_book(p = 0.5, N = 10)
 
 var_ztbinom_book(p = 0.5, N = 10)
 ```
-builds a full pdf to confirm the shape and behavrio of the calculated distribution
+
+builds a full pdf to confirm the shape and behavrio of the calculated
+distribution
 
 ```{r}
 # pdf build
@@ -168,8 +170,8 @@ pdf_df |>
 
 sum(pdf)
 ```
-Same for the CDF
 
+Same for the CDF
 
 ```{r}
 cdf <- rep(0, 20)
@@ -191,30 +193,63 @@ cdf_df |>
   scale_x_continuous(breaks = seq(0, 20, 1)) +
   scale_y_continuous(breaks = seq(-0.1, 1, 0.1))
 ```
-uses those functions to create a value-generating function for the ztnbinom from n and p
+
+uses those functions to create a value-generating function for the
+ztnbinom from n and p
+
+Things to fix:
+
+use which.max to find the next highest value after sampling from 0 to the cdf value at N*10
 
 ```{r}
 r_ztbinom_book <- function(n, p, N) {
   
-  draws <- rep(NA, n)
+  set.seed(7)
   
+  # 'price is right' function
+  # takes a value x, and a vector y, finds and returns the y value for which
+  # x is closest to without going over
+  
+  pir <- function(x, y){
+    
+    val <- min(y[y >= x])
+
+    # y <- y - x
+    # val <- min(y[y > 0])
+    # val <- val + x
+    return(val)
+  }
+
+  # sets upper bound for how many cdf values to calculate, keeps sampler fast
   upper = N*10
   
-  min = cdf_ztbinom_book(k = 1, p = p, N = N)
-  max = cdf_ztbinom_book(k = upper, p = p, N = N)
-  
   cdf_vals <- rep(0, upper)
+  return_vals <- rep(0, upper)
   
   for (i in 1:upper) {
+    return_vals[i] <- i
     cdf_vals[i] <- cdf_ztbinom_book(k = i, p = p, N = N)
   }
+  
+  tab <- tibble(return_vals, cdf_vals)
+  
+  
+  # sets bounds for upper and lower limit of the unif() draw function for the 
+  # inverse cdf sampler
+  
+  # min = cdf_ztbinom_book(k = 1, p = p, N = N)
+  min = 0
+  max = cdf_ztbinom_book(k = upper, p = p, N = N) # can do e^huge
+  draws <- rep(0, n)
   
   for (i in 1:n) {
     unif_draw <- runif(n = 1, min = min, max = max)
     
-    dist_to_0 = cdf_vals - unif_draw
+    # which value of the cdf is just higher than this value
     
-    draw <- which.min(abs(dist_to_0))
+    cdf_val_of_draw <- pir(unif_draw, cdf_vals)
+    
+    draw <- tab$return_vals[tab$cdf_vals == cdf_val_of_draw]
     
     draws[i] <- draw
   }
@@ -222,12 +257,13 @@ r_ztbinom_book <- function(n, p, N) {
 }
 ```
 
+
 ```{r}
 set.seed(1)
 
 n = 100000
-N = 100
-p = 0.01
+N = 10
+p = 0.5
 
 # pdf <- d_ztbinom_book(k = seq(1, N*10, 1), p = p, N = N)
 # 
@@ -244,22 +280,22 @@ p = 0.01
 
 d <- r_ztbinom_book(n, p, N)
 
-draws <- as.data.frame(d) |>
-  rename(draws = d) 
+test_draws <- as.data.frame(d) |>
+  rename(test_draws = d) 
 
 # draws |>
 #   ggplot(aes(x = draws)) +
 #   geom_histogram(binwidth = 1) +
 #   theme_bw() 
 
-mean(draws$draws)
-var(draws$draws)
+mean(test_draws$test_draws)
+var(test_draws$test_draws)
 ```
 
 ```{r}
 # # Fixed parameters
 # n_samples <- 10000 # Number of draws per iteration
-# N_fixed   <- 100   # Fixed N parameter
+# N_fixed   <- 3   # Fixed N parameter
 # 
 # # Range for p (99 sets of calculations from 0.01 to 0.99)
 # p_values <- seq(from = 0.01, to = 0.99, by = 0.01)
@@ -273,21 +309,21 @@ var(draws$draws)
 # 
 # for (i in seq_along(p_values)) {
 #   current_p <- p_values[i]
-#   
+# 
 #   # 1. Generate the truncated random data using the ORIGINAL function
 #   simulated_data <- r_ztbinom_book(n = n_samples, p = current_p, N = N_fixed)
-#   
+# 
 #   # 2. Calculate observed moments
 #   obs_mean <- mean(simulated_data)
 #   obs_var  <- var(simulated_data)
-#   
+# 
 #   # Avoid division by zero
 #   if (obs_var > 1e-9) {
 #     mean_to_var_ratio <- obs_mean / obs_var
 #   } else {
 #     mean_to_var_ratio <- NA
 #   }
-#   
+# 
 #   # 3. Store the results
 #   results_list[[i]] <- tibble(
 #     p_param = current_p,
@@ -296,17 +332,25 @@ var(draws$draws)
 #     Observed_Variance = obs_var,
 #     Mean_to_Var_Ratio = mean_to_var_ratio
 #   )
-#
+# 
 # }
-
-# Combine results into a final data frame
+# 
+# # Combine results into a final data frame
 # simulation_results <- bind_rows(results_list)
+# 
+# here::here(saveRDS(simulation_results, file = "simulation_results3.RDS"))
+```
 
-# here::here(saveRDS(simulation_results, file = "simulation_results.RDS"))
+```{r}
+simulation_results100 <- readRDS("~/Documents/St. Andrews/2023 Internship/Simulated_Data/simulation_results.RDS")
 
-here::here(readRDS("simulation_results.RDS"))
+simulation_results20 <- readRDS("~/Documents/St. Andrews/2023 Internship/Simulated_Data/simulation_results20.RDS")
 
-reg_try <- simulation_results |>
+simulation_results3 <- readRDS("~/Documents/St. Andrews/2023 Internship/Simulated_Data/simulation_results3.RDS")
+```
+
+```{r}
+reg_try <- simulation_results100 |>
   filter(Mean_to_Var_Ratio < 1)
 ## ---------------------------------------------------------
 ## 3. Create the Plot
@@ -319,7 +363,7 @@ dispersion_plot <- reg_try |>
   geom_smooth(method = "lm") +
   
   labs(
-    title = paste0("Dispersion Ratio vs. Parameter p (N=", N_fixed, ")"),
+    title = paste0("Dispersion Ratio vs. Parameter p"),
     subtitle = "Ratio of Observed Mean to Observed Variance using non-vectorized simulation",
     x = "Parameter p (0.01 to 0.99)",
     y = "Mean / Variance Ratio (Dispersion)"
@@ -330,15 +374,15 @@ dispersion_plot <- reg_try |>
 print(dispersion_plot)
 
 # Display the first few results rows
-head(simulation_results)
+head(simulation_results3)
 ```
+
 ```{r}
 # reg_try <- simulation_results |>
 #   filter(Mean_to_Var_Ratio < 1)
 
 lm(reg_try$p_param ~ reg_try$Mean_to_Var_Ratio)
 ```
-
 
 ```{r}
 # pdf <- d_ztbinom_book(k = seq(1, 20, 1), p = 0.5, N = 10)
@@ -356,8 +400,6 @@ lm(reg_try$p_param ~ reg_try$Mean_to_Var_Ratio)
 # 
 # sum(pdf)
 ```
-
-
 
 ```{r}
 # polynomial <- function(N, P) {
@@ -432,14 +474,18 @@ variance_tnb <- function(N, P) {
 }
 ```
 
-mean estimated from r_ztbinom_book for N = 10, p = 0.5 = 4.84326
-var estimated from r_ztbinom_book for N = 10, p = 0.5  = 6.808941
+mean estimated from r_ztbinom_book for N = 10, p = 0.5 = 4.84326 var
+estimated from r_ztbinom_book for N = 10, p = 0.5 = 6.808941
 
 ```{r}
 mean_tnb(10, 0.5)
 variance_tnb(10, 0.5)
 ```
-So not a perfect approximation, something to investigate or call it close enough??
+
+So not a perfect approximation, something to investigate or call it
+close enough??
+
+Initial values can either come from 
 
 ```{r}
 # ---------------------------------------------------------
@@ -481,35 +527,34 @@ find_parameters <- function(observed_mean, observed_var) {
 }
 ```
 
-mean estimated from r_ztbinom_book for N = 10, p = 0.5 = 4.84326
-var estimated from r_ztbinom_book for N = 10, p = 0.5  = 6.808941
+mean estimated from r_ztbinom_book for N = 10, p = 0.5 = 4.84326 var
+estimated from r_ztbinom_book for N = 10, p = 0.5 = 6.808941
 
 ```{r}
-find_parameters(6, 8)
+find_parameters(4.84326, 6.808941)
 ```
 
-This works as long as the variance isnt more than like 1.6 times the mean and the variance isnt smaller than the mean.
+This works as long as the variance isnt more than like 1.6 times the
+mean and the variance isnt smaller than the mean.
 
 ```{r}
-d <- r_ztbinom_book(n = 1000, p = 0.370977, N = 16.07206)
+d <- r_ztbinom_book(n = 10000, p = 0.5, N = 10)
 
-draws <- as.data.frame(d) |>
-  rename(draws = d) 
+draws_test2 <- as.data.frame(d) |>
+  rename(draws_test2 = d) 
 
-draws |>
-  ggplot(aes(x = draws)) +
+draws_test2 |>
+  ggplot(aes(x = draws_test2)) +
   geom_histogram(binwidth = 1) +
   theme_bw() 
 ```
 
 ```{r}
-mean(draws$draws)
-var(draws$draws)
+mean(draws_test2$draws_test2)
+var(draws_test2$draws_test2)
 ```
 
 ```{r}
-
-
 # ---------------------------------------------------------
 # 3. Diagnostic Test Suite
 # ---------------------------------------------------------
@@ -518,12 +563,11 @@ var(draws$draws)
 # Note: For Negative Binomial, Variance usually must be > Mean
 test_scenarios <- tribble(
   ~Target_Mean, ~Target_Var,
-  1,            2.0,
+  1.5,          5,
   4.8566,       6.693906,
-  5.0,          10.0,
+  5.0957,          7.267268,
   10.5,         100,
-  10.0,         30.0,
-  200.0,        400.0
+  10.0,         11.0,
 )
 
 # Function to run a single diagnostic row
@@ -553,7 +597,8 @@ run_diagnostic <- function(t_mean, t_var) {
     check_Mean = sim_mean,
     check_Var = sim_var,
     # Calculate % error between Input Mean and Sim Mean
-    Mean_Diff_Pct = paste0(round(((sim_mean - t_mean) / t_mean) * 100, 2), "%")
+    Mean_Diff_Pct = paste0(round(((sim_mean - t_mean) / t_mean) * 100, 2), "%"),
+    Var_Diff_Pct = paste0(round(((sim_var - t_var) / t_var) * 100, 2), "%")
   )
 }
 
