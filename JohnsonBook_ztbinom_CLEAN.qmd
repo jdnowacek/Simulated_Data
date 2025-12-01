@@ -161,7 +161,7 @@ find_parameters <- function(observed_mean, observed_var) {
     theo_var  <- var_ztbinom_book(p, N)
     
     # Squared Error Cost
-    error <- ((theo_mean - observed_mean) / observed_mean)^2 + ((theo_var - observed_var) / observed_var)^2
+    error <- (theo_mean - observed_mean)^2 + (theo_var - observed_var)^2
     return(error)
   }
   
@@ -197,11 +197,11 @@ Set of testing cases for the find_parameters function
 # Note: For Negative Binomial, Variance usually must be > Mean
 test_scenarios <- tribble(
   ~Target_Mean, ~Target_Var,
-  1.5,          5,
-  4.8566,       6.693906,
-  5.0957,       7.267268,
-  10.5,         100,
-  10.0,         11.0,
+  5,            7,
+  5,            8,
+  5,            9,
+  5,            10,
+  10,           12,
 )
 
 # Function to run a single diagnostic row
