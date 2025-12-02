@@ -93,7 +93,7 @@ generalized_choose(12.000001, 4.0000001)
 use that generalized function for the functions
 
 ```{r}
-d_ztbinom_book <- function(k, p, N) {
+d_ztbinom_book <- function(k, N, p) {
   q = p + 1
   
   prob = (1/(1-(q^-N))) * generalized_choose(n = N+k-1, k = N-1) * (p/q)^k * (1 - (p/q))^N
@@ -103,12 +103,12 @@ d_ztbinom_book <- function(k, p, N) {
 ```
 
 ```{r}
-cdf_ztbinom_book <- function(k, p, N) {
+cdf_ztbinom_book <- function(k, N, p) {
   q = p + 1
   
   cumulative_prob <- 0
   for (i in 1:k) {
-    cumulative_prob = cumulative_prob + d_ztbinom_book(i, p, N)
+    cumulative_prob = cumulative_prob + d_ztbinom_book(i, N, p)
   }
   
   return(cumulative_prob)
@@ -116,7 +116,7 @@ cdf_ztbinom_book <- function(k, p, N) {
 ```
 
 ```{r}
-mean_ztbinom_book <- function(p, N) {
+mean_ztbinom_book <- function(N, p) {
   q = p + 1
   
   mean = N*p / (1-(q^-N))
@@ -126,7 +126,7 @@ mean_ztbinom_book <- function(p, N) {
 ```
 
 ```{r}
-var_ztbinom_book <- function(p, N) {
+var_ztbinom_book <- function(N, p) {
   q = p + 1
   
   var = ( (N*p*q) / (1-(q^-N)) ) * ( 1 - (N*p / q) * ( 1 / (1-(q^-N)) - 1)  )
@@ -202,7 +202,7 @@ Things to fix:
 use which.max to find the next highest value after sampling from 0 to the cdf value at N*10
 
 ```{r}
-r_ztbinom_book <- function(n, p, N) {
+r_ztbinom_book <- function(n, N, p) {
   
   set.seed(7)
   
@@ -228,7 +228,7 @@ r_ztbinom_book <- function(n, p, N) {
   
   for (i in 1:upper) {
     return_vals[i] <- i
-    cdf_vals[i] <- cdf_ztbinom_book(k = i, p = p, N = N)
+    cdf_vals[i] <- cdf_ztbinom_book(k = i, N = N, p = p)
   }
   
   tab <- tibble(return_vals, cdf_vals)
@@ -237,9 +237,9 @@ r_ztbinom_book <- function(n, p, N) {
   # sets bounds for upper and lower limit of the unif() draw function for the 
   # inverse cdf sampler
   
-  # min = cdf_ztbinom_book(k = 1, p = p, N = N)
+  # min = cdf_ztbinom_book(k = 1, N = N, p = p)
   min = 0
-  max = cdf_ztbinom_book(k = upper, p = p, N = N) # can do e^huge
+  max = cdf_ztbinom_book(k = upper, N = N, p = p) # can do e^huge
   draws <- rep(0, n)
   
   for (i in 1:n) {
@@ -265,7 +265,7 @@ n = 100000
 N = 10
 p = 0.5
 
-# pdf <- d_ztbinom_book(k = seq(1, N*10, 1), p = p, N = N)
+# pdf <- d_ztbinom_book(k = seq(1, N*10, 1), N = N, p = p)
 # 
 # pdf_df <- as.data.frame(pdf)
 # 
@@ -278,7 +278,7 @@ p = 0.5
 #   geom_line() +
 #   theme_bw() 
 
-d <- r_ztbinom_book(n, p, N)
+d <- r_ztbinom_book(n, N, p)
 
 test_draws <- as.data.frame(d) |>
   rename(test_draws = d) 
@@ -311,7 +311,7 @@ var(test_draws$test_draws)
 #   current_p <- p_values[i]
 # 
 #   # 1. Generate the truncated random data using the ORIGINAL function
-#   simulated_data <- r_ztbinom_book(n = n_samples, p = current_p, N = N_fixed)
+#   simulated_data <- r_ztbinom_book(n = n_samples, N = N_fixed, p = current_p)
 # 
 #   # 2. Calculate observed moments
 #   obs_mean <- mean(simulated_data)
@@ -582,7 +582,7 @@ run_diagnostic <- function(t_mean, t_var) {
   # 3. Generate Simulation
   # Using the user's r_ztbinom_book function
   # We generate a large sample size (n=50,000) to ensure stability of the sim mean/var
-  sim_values <- r_ztbinom_book(n = 50000, p = est_p, N = est_n)
+  sim_values <- r_ztbinom_book(n = 50000, N = est_n, p = est_p)
   
   # 4. Calculate Simulated Metrics
   sim_mean <- mean(sim_values)

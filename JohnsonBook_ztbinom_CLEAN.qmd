@@ -16,7 +16,7 @@ library(knitr)
 defines a function that returns the probability of an input value, k, in the zero-truncated negative binomial function with the specified p and N
 
 ```{r}
-d_ztbinom_book <- function(k, p, N) {
+d_ztbinom_book <- function(k, N, p) {
   
   generalized_choose <- function(n, k) {
   return(exp(lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1)))
@@ -28,16 +28,20 @@ d_ztbinom_book <- function(k, p, N) {
 }
 ```
 
+```{r}
+d_ztbinom_book(3, 0.5, 10)
+```
+
 ## CDF function
 
 defines a function that returns the cumulative probability up to an input value, k, in the zero-truncated negative binomial function with the specified p and N
 
 ```{r}
-cdf_ztbinom_book <- function(k, p, N) {
+cdf_ztbinom_book <- function(k, N, p) {
   
   cumulative_prob <- 0
   for (i in 1:k) {
-    cumulative_prob = cumulative_prob + d_ztbinom_book(i, p, N)
+    cumulative_prob = cumulative_prob + d_ztbinom_book(i, N, p)
   }
   
   return(cumulative_prob)
@@ -49,7 +53,7 @@ cdf_ztbinom_book <- function(k, p, N) {
 calculates the mean of the ztnbinom function based on the parameters, p and N, input
 
 ```{r}
-mean_ztbinom_book <- function(p, N) {
+mean_ztbinom_book <- function(N, p) {
 
   mean = N*p / (1-((1+p)^-N))
   
@@ -62,7 +66,7 @@ mean_ztbinom_book <- function(p, N) {
 calculates the variance of the ztnbinom function based on the parameters, p and N, input
 
 ```{r}
-var_ztbinom_book <- function(p, N) {
+var_ztbinom_book <- function(N, p) {
 
   var = ( (N*p*(1+p)) / (1-((1+p)^-N)) ) * ( 1 - (N*p / (1+p)) * ( 1 / (1-((1+p)^-N)) - 1)  )
   
@@ -86,10 +90,10 @@ var_ztbinom_book(p = 0.5, N = 10)
 
 ## R function
 
-defines a function that returns n draws from a zero truncated negative binomial distribution with the input p and N as parameters. 
+defines a function that returns n draws from a zero truncated negative binomial distribution with the input p and N as parameters.
 
 ```{r}
-r_ztbinom_book <- function(n, p, N) {
+r_ztbinom_book <- function(n, N, p) {
   
   set.seed(7)
   
@@ -115,7 +119,7 @@ r_ztbinom_book <- function(n, p, N) {
   
   for (i in 1:upper) {
     return_vals[i] <- i
-    cdf_vals[i] <- cdf_ztbinom_book(k = i, p = p, N = N)
+    cdf_vals[i] <- cdf_ztbinom_book(k = i, N = N, p = p)
   }
   
   tab <- tibble(return_vals, cdf_vals)
@@ -124,9 +128,9 @@ r_ztbinom_book <- function(n, p, N) {
   # sets bounds for upper and lower limit of the unif() draw function for the 
   # inverse cdf sampler
   
-  # min = cdf_ztbinom_book(k = 1, p = p, N = N)
+  # min = cdf_ztbinom_book(k = 1, p = N, p = N)
   min = 0
-  max = cdf_ztbinom_book(k = upper, p = p, N = N) # can do e^huge
+  max = cdf_ztbinom_book(k = upper, p = N, p = N) # can do e^huge
   draws <- rep(0, n)
   
   for (i in 1:n) {
@@ -146,42 +150,44 @@ r_ztbinom_book <- function(n, p, N) {
 
 ## Function to find N and p from mean and variance
 
-Find parameters to best fit for a given mean and variance
+Find parameters to best fit a desired mean and variance
 
 ```{r}
-find_parameters <- function(observed_mean, observed_var) {
+find_parameters <- function(desired_mean, desired_var) {
   
-  # Objective: Minimize the difference between Theoretical (Eq 41) and Observed
-  objective_fn <- function(params) {
+  # minimize the difference between calculated and desired mean and variance
+  error_ftn <- function(params) {
     
     N <- params[1]
     p <- params[2]
     
-    theo_mean <- mean_ztbinom_book(p, N)
-    theo_var  <- var_ztbinom_book(p, N)
+    book_mean <- mean_ztbinom_book(N, p)
+    book_var  <- var_ztbinom_book(N, p)
     
-    # Squared Error Cost
-    error <- (theo_mean - observed_mean)^2 + (theo_var - observed_var)^2
+    error <- (book_mean - desired_mean)^2 + (book_var - desired_var)^2
     return(error)
   }
   
-  # Initial Guess
-  start_guesses <- c(observed_mean*0.9, (2.096 - 2.362*(observed_mean/observed_var)))
+  start_guesses <- c(desired_mean*0.9, (2.096 - 2.362*(desired_mean/desired_var)))
   
   result <- optim(
     par = start_guesses,
-    fn = objective_fn,
+    fn = error_ftn,
     method = "L-BFGS-B",
-    lower = c(0.001, 0.001), # Parameters must be positive
-    upper = c(Inf, 0.9999)
+    lower = c(0.001, 0.001), 
+    upper = c(Inf, 0.99999)
   )
   
   return(list(
     Estimated_N = result$par[1],
-    Estimated_P = result$par[2],
-    Goodness_of_Fit = result$value # Closer to 0 is better
+    Estimated_p = result$par[2],
+    Goodness_of_Fit = result$value 
   ))
 }
+```
+
+```{r}
+find_parameters(5, 7)
 ```
 
 ### Testing
@@ -189,62 +195,62 @@ find_parameters <- function(observed_mean, observed_var) {
 Set of testing cases for the find_parameters function
 
 ```{r}
-# ---------------------------------------------------------
-# 3. Diagnostic Test Suite
-# ---------------------------------------------------------
-
-# Define a set of target Means and Variances to test
-# Note: For Negative Binomial, Variance usually must be > Mean
-test_scenarios <- tribble(
-  ~Target_Mean, ~Target_Var,
-  5,            7,
-  5,            8,
-  5,            9,
-  5,            10,
-  10,           12,
-)
-
-# Function to run a single diagnostic row
-run_diagnostic <- function(t_mean, t_var) {
-  
-  # 1. Solve for N and P
-  params <- find_parameters(t_mean, t_var)
-  
-  est_n <- params$Estimated_N
-  est_p <- params$Estimated_P
-  
-  # 3. Generate Simulation
-  # Using the user's r_ztbinom_book function
-  # We generate a large sample size (n=50,000) to ensure stability of the sim mean/var
-  sim_values <- r_ztbinom_book(n = 500000, p = est_p, N = est_n)
-  
-  # 4. Calculate Simulated Metrics
-  sim_mean <- mean(sim_values)
-  sim_var  <- var(sim_values)
-  
-  # 5. Return Row
-  tibble(
-    Target_Mean = t_mean,
-    Target_Var  = t_var,
-    Estimated_N = est_n,
-    Estimated_P = est_p,
-    check_Mean = sim_mean,
-    check_Var = sim_var,
-    # Calculate % error between Input Mean and Sim Mean
-    Mean_Diff_Pct = paste0(round(((sim_mean - t_mean) / t_mean) * 100, 2), "%"),
-    Var_Diff_Pct = paste0(round(((sim_var - t_var) / t_var) * 100, 2), "%")
-  )
-}
-
-# Execute the tests across all scenarios
-results_table <- test_scenarios |>
-  pmap_dfr(function(Target_Mean, Target_Var) {
-    run_diagnostic(Target_Mean, Target_Var)
-  })
-
-# ---------------------------------------------------------
-# 4. Output Formatted Table
-# ---------------------------------------------------------
-
-results_table 
+# # ---------------------------------------------------------
+# # 3. Diagnostic Test Suite
+# # ---------------------------------------------------------
+# 
+# # Define a set of target Means and Variances to test
+# # Note: For Negative Binomial, Variance usually must be > Mean
+# test_scenarios <- tribble(
+#   ~Target_Mean, ~Target_Var,
+#   1.4,          2,
+#   5,            8,
+#   5,            9,
+#   5,            10,
+#   100,          120,
+# )
+# 
+# # Function to run a single diagnostic row
+# run_diagnostic <- function(t_mean, t_var) {
+#   
+#   # 1. Solve for N and P
+#   params <- find_parameters(t_mean, t_var)
+#   
+#   est_n <- params$Estimated_N
+#   est_p <- params$Estimated_P
+#   
+#   # 3. Generate Simulation
+#   # Using the user's r_ztbinom_book function
+#   # We generate a large sample size (n=50,000) to ensure stability of the sim mean/var
+#   sim_values <- r_ztbinom_book(n = 500000, N = est_n, p = est_p)
+#   
+#   # 4. Calculate Simulated Metrics
+#   sim_mean <- mean(sim_values)
+#   sim_var  <- var(sim_values)
+#   
+#   # 5. Return Row
+#   tibble(
+#     Target_Mean = t_mean,
+#     Target_Var  = t_var,
+#     Estimated_N = est_n,
+#     Estimated_P = est_p,
+#     check_Mean = sim_mean,
+#     check_Var = sim_var,
+#     # Calculate % error between Input Mean and Sim Mean
+#     Mean_Diff_Pct = paste0(round(((sim_mean - t_mean) / t_mean) * 100, 2), "%"),
+#     Var_Diff_Pct = paste0(round(((sim_var - t_var) / t_var) * 100, 2), "%")
+#   )
+# }
+# 
+# # Execute the tests across all scenarios
+# results_table <- test_scenarios |>
+#   pmap_dfr(function(Target_Mean, Target_Var) {
+#     run_diagnostic(Target_Mean, Target_Var)
+#   })
+# 
+# # ---------------------------------------------------------
+# # 4. Output Formatted Table
+# # ---------------------------------------------------------
+# 
+# results_table
 ```
